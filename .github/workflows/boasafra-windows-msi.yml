@@ -7,6 +7,13 @@
 # installer actually needs instead of the full platform matrix.
 name: Boa Safra Windows installer
 
+# One run per branch or pull request. A new push supersedes the one in flight
+# instead of queueing behind it — these builds are long, and stacked runs
+# compete for the same scarce runners (notably the small windows-11-arm pool).
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 on:
   workflow_dispatch:
     inputs:
