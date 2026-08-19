@@ -1,0 +1,37 @@
+# Builds the Boa Safra Windows installer, and nothing else.
+#
+# The upstream nightly workflow carries a `schedule:` trigger, which GitHub
+# disables on forks (it reports state `disabled_fork`), so it cannot be
+# dispatched from here. This one is dispatch- and push-triggered, so it stays
+# active, and it passes `windows-only` so the run is the three jobs the
+# installer actually needs instead of the full platform matrix.
+name: Boa Safra Windows installer
+
+on:
+  workflow_dispatch:
+    inputs:
+      release-tag:
+        description: The pre-release the MSI and the installer are published under
+        type: string
+        default: boasafra-windows
+  push:
+    # Pushing a release tag builds and publishes it. A build/** branch is the
+    # way to ask for a build off work that is not tagged yet, without every
+    # push to a feature branch spending an hour of runner time.
+    tags: ["boasafra-v*"]
+    branches: ["build/**"]
+
+jobs:
+  windows:
+    permissions:
+      # The run publishes the MSI and the self-extracting installer to a
+      # pre-release, which the default read-only token cannot do.
+      contents: write
+    uses: ./.github/workflows/flutter-build.yml
+    secrets: inherit
+    with:
+      windows-only: true
+      # The MSI, the self-extracting installer and the portable zip are all
+      # produced by steps gated on this.
+      upload-artifact: true
+      upload-tag: ${{ inputs.release-tag || 'boasafra-windows' }}

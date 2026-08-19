@@ -69,30 +69,40 @@ Two artifacts come out of a Windows build, both usable as installers:
 
 ### Through GitHub Actions (recommended)
 
-The repository's own pipeline builds both. It has never run on this fork, so
-Actions has to be enabled once:
+Use the **Boa Safra Windows installer** workflow
+([`.github/workflows/boasafra-windows-msi.yml`](.github/workflows/boasafra-windows-msi.yml)).
+It calls the project's own build pipeline with `windows-only`, so a run is the
+three jobs the installer needs — the flutter-rust bridge, the top-most-window
+helper and the Windows build — instead of the full platform matrix.
 
-1. Open the repository on GitHub → **Actions** tab. If it shows
-   "Workflows aren't being run on this forked repository", click
-   **I understand my workflows, go ahead and enable them**.
-2. In the left sidebar pick **Flutter Nightly Build** → **Run workflow** →
-   choose the branch → **Run workflow**.
-3. Wait. The Windows jobs are `x86_64-pc-windows-msvc` (and
-   `aarch64-pc-windows-msvc` for Windows on ARM). A cold run takes roughly an
-   hour, mostly vcpkg.
-4. Collect the result:
-   - **Releases → the `nightly` pre-release**: `boasafra-1.4.9-x86_64.msi` and
-     `boasafra-1.4.9-x86_64.exe`.
-   - **The workflow run → Artifacts**: `boasafra-unsigned-windows-x86_64`, a
-     zip of the built application folder. That is the portable form — no
-     installer, just unzip and run `boasafra.exe`.
+Do not reach for **Flutter Nightly Build**: it carries a `schedule:` trigger,
+which GitHub disables on forks, so it cannot be dispatched from here.
 
-Two things to expect on a fork:
+There are three ways to start a run:
 
-- The jobs for the other platforms may fail (they need secrets this fork does
-  not have). `fail-fast` is off, so the Windows jobs still finish and publish.
-- The signing steps are skipped without the `SIGN_BASE_URL` secret, so the
-  binaries are unsigned and Windows SmartScreen will warn on first run. To
+- **By hand.** Actions → *Boa Safra Windows installer* → **Run workflow**,
+  pick the branch, optionally change the pre-release name.
+- **By release tag.** Pushing a `boasafra-v*` tag builds and publishes it. This
+  is the normal path for a release.
+- **By build branch.** Pushing any `build/**` branch builds it. Use this for a
+  build off work that is not tagged yet — feature branches deliberately do not
+  trigger a build, because each one costs about an hour of runner time.
+
+When the run finishes, the artefacts are in two places:
+
+- **Releases → the pre-release** (`boasafra-windows` by default, or the tag you
+  pushed): `boasafra-<version>-x86_64.msi` and `boasafra-<version>-x86_64.exe`.
+- **The run's Artifacts**: `boasafra-unsigned-windows-x86_64`, a zip of the
+  built application folder. That is the portable form — unzip and run
+  `boasafra.exe`, no installation.
+
+Two things to expect:
+
+- The matrix also builds `aarch64` for Windows on ARM. If your plan has no
+  `windows-11-arm` runners that job fails; `fail-fast` is off, so the x86_64
+  job still finishes and publishes.
+- The signing steps are skipped unless the `SIGN_BASE_URL` secret is set, so
+  the binaries are unsigned and Windows SmartScreen will warn on first run. To
   avoid that, sign the MSI and the exe with your own code-signing certificate,
   or distribute through Group Policy / Intune where SmartScreen does not apply.
 
