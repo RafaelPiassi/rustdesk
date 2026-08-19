@@ -63,8 +63,11 @@ jobs:
     if: ${{ !inputs.windows-only }}
     runs-on: ubuntu-latest
 
-    permissions:
-      contents: write
+    # No permissions block on purpose: a called workflow's job can only narrow
+    # the caller's token, never widen it, so requesting contents: write here
+    # fails the whole run at startup for any caller that does not publish (the
+    # PR CI, which passes upload-artifact: false). The callers that do publish
+    # grant the write themselves.
 
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4

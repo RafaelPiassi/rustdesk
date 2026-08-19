@@ -11,6 +11,9 @@ on:
 
 jobs:
   run-flutter-tag-build:
+    permissions:
+      # The run publishes artifacts to a release.
+      contents: write
     uses: ./.github/workflows/flutter-build.yml
     secrets: inherit
     with:
