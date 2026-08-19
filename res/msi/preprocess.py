@@ -169,7 +169,13 @@ def gen_pre_vars(args, dist_dir):
         to_insert_lines = [
             f'{indent}<?define Version="{g_version}" ?>\n',
             f'{indent}<?define Manufacturer="{args.manufacturer}" ?>\n',
-            f'{indent}<?define Product="{product_name}" ?>\n',
+            # Product is the identity: the WiX package names the installed
+            # executable, the service, the install folder, the AppData folder
+            # and the registry keys after it, and those have to match what the
+            # application itself derives from src/branding.rs. Only the name
+            # the user reads uses ProductDisplay.
+            f'{indent}<?define Product="{args.app_name}" ?>\n',
+            f'{indent}<?define ProductDisplay="{product_name}" ?>\n',
             f'{indent}<?define Description="{product_name} Installer" ?>\n',
             f'{indent}<?define ProductLower="{args.app_name.lower()}" ?>\n',
             f'{indent}<?define RegKeyRoot=".$(var.ProductLower)" ?>\n',
