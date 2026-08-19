@@ -58,3 +58,7 @@ libsciter.dylib
 flutter/web/
 # libdrmtap is cloned at build time by build.py (not a submodule)
 /third_party/libdrmtap/
+# Boa Safra branding: the blanket *png / *svg rules above would otherwise drop
+# both the brand sources and the assets generated from them.
+!res/branding/**
+!flutter/assets/*.png

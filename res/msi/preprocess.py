@@ -442,16 +442,24 @@ def gen_content_between_tags(filename, tag_start, tag_end, func):
 
 
 def prepare_resources():
-    icon_src = Path(sys.argv[0]).parent.joinpath("../icon.ico")
-    icon_dst = Path(sys.argv[0]).parent.joinpath("Package/Resources/icon.ico")
-    if icon_src.exists():
-        icon_dst.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy(icon_src, icon_dst)
-        return True
-    else:
+    here = Path(sys.argv[0]).parent
+    resources = here.joinpath("Package/Resources")
+    icon_src = here.joinpath("../icon.ico")
+    if not icon_src.exists():
         # unreachable
         print(f"Error: icon.ico not found in {icon_src}")
         return False
+    resources.mkdir(parents=True, exist_ok=True)
+    shutil.copy(icon_src, resources.joinpath("icon.ico"))
+
+    # Branded installer artwork. Package/Resources is generated, so the
+    # bitmaps live with the rest of the brand and are copied in here;
+    # gen_custom_dialog_bitmaps() then wires up whichever ones are present.
+    branding = here.joinpath("../branding/boasafra/msi")
+    if branding.is_dir():
+        for bitmap in sorted(branding.glob("*.bmp")):
+            shutil.copy(bitmap, resources.joinpath(bitmap.name))
+    return True
 
 
 def init_global_vars(dist_dir, app_name, args):

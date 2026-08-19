@@ -1,7 +1,7 @@
 [Desktop Entry]
-Name=RustDesk
-GenericName=Remote Desktop
-Comment=Remote Desktop
+Name=Boa Safra Acesso Remoto
+GenericName=Acesso Remoto
+Comment=Acesso remoto Boa Safra
 Exec=rustdesk %u
 Icon=rustdesk
 Terminal=false
