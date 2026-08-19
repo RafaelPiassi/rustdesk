@@ -2,18 +2,18 @@
 Name=Boa Safra Acesso Remoto
 GenericName=Acesso Remoto
 Comment=Acesso remoto Boa Safra
-Exec=rustdesk %u
-Icon=rustdesk
+Exec=boasafra %u
+Icon=boasafra
 Terminal=false
 Type=Application
 StartupNotify=true
 Categories=Network;RemoteAccess;GTK;
 Keywords=internet;linux;dart;rust;remote-control;p2p;teamviewer;rust-lang;rdp;remote-desktop;vnc;
 Actions=new-window;
-StartupWMClass=rustdesk
+StartupWMClass=boasafra
 
 X-Desktop-File-Install-Version=0.23
 
 [Desktop Action new-window]
 Name=Open a New Window
-Exec=rustdesk %u
+Exec=boasafra %u

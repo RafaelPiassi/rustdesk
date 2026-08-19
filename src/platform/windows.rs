@@ -1242,12 +1242,13 @@ pub fn portable_service_logon_helper_paths() -> Option<(PathBuf, PathBuf)> {
     // If users report redirected/non-standard LocalAppData issues, switch to:
     // `BaseDirs::new()?.data_local_dir()` for Known Folder-based resolution.
     let user_dir = hbb_common::directories_next::UserDirs::new()?;
+    let app = crate::get_app_name().to_lowercase();
     let dir = user_dir
         .home_dir()
         .join("AppData")
         .join("Local")
-        .join("rustdesk-sciter");
-    let dst = dir.join("rustdesk.exe");
+        .join(format!("{app}-sciter"));
+    let dst = dir.join(format!("{app}.exe"));
     Some((dir, dst))
 }
 

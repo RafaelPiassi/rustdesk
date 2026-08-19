@@ -1,11 +1,11 @@
 [Desktop Entry]
 Name=Boa Safra Acesso Remoto
 NoDisplay=true
-MimeType=x-scheme-handler/rustdesk;
-TryExec=rustdesk
-Exec=rustdesk %u
-Icon=rustdesk
+MimeType=x-scheme-handler/boasafra;
+TryExec=boasafra
+Exec=boasafra %u
+Icon=boasafra
 Terminal=false
 Type=Application
 StartupNotify=false
-StartupWMClass=rustdesk
+StartupWMClass=boasafra

@@ -9,11 +9,12 @@
 </p>
 
 > [!Note]
-> This is the **Boa Safra** build of RustDesk: the application ships with the
-> Boa Safra identity and is presented to users as "Boa Safra Acesso Remoto".
-> The branding is generated from [`res/branding`](res/branding) — see that
-> directory for how to regenerate it or swap in updated artwork. Everything
-> below is the upstream RustDesk documentation and still applies unchanged.
+> This is the **Boa Safra** build of RustDesk. It installs as `boasafra`,
+> registers the `boasafra://` scheme and is presented to users as
+> "Boa Safra Acesso Remoto". See **[BOASAFRA.md](BOASAFRA.md)** for the naming
+> and version scheme and for how to build and download the Windows installer,
+> and [`res/branding`](res/branding) for the artwork. Everything below is the
+> upstream RustDesk documentation and still applies unchanged.
 
 > [!Caution]
 > **Misuse Disclaimer:** <br>

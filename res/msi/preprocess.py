@@ -27,15 +27,15 @@ g_arpsystemcomponent = {
     },
     "Contact": {
         "msi": "ARPCONTACT",
-        "v": "https://github.com/rustdesk/rustdesk",
+        "v": "https://github.com/RafaelPiassi/rustdesk",
     },
     "HelpLink": {
         "msi": "ARPHELPLINK",
-        "v": "https://github.com/rustdesk/rustdesk/issues/",
+        "v": "https://github.com/RafaelPiassi/rustdesk/issues/",
     },
     "ReadMe": {
         "msi": "ARPREADME",
-        "v": "https://github.com/rustdesk/rustdesk",
+        "v": "https://github.com/RafaelPiassi/rustdesk",
     },
 }
 
@@ -48,7 +48,7 @@ def make_parser():
         "-d",
         "--dist-dir",
         type=str,
-        default="../../rustdesk",
+        default="../../boasafra",
         help="The dist directory to install.",
     )
     parser.add_argument(
@@ -73,7 +73,16 @@ def make_parser():
         help='Connection type, e.g. "incoming", "outgoing". Default is empty, means incoming-outgoing',
     )
     parser.add_argument(
-        "--app-name", type=str, default="RustDesk", help="The app name."
+        "--app-name",
+        type=str,
+        default="BoaSafra",
+        help="The app identity: the executable base name, the registry key root and the URL protocol all derive from it, so it stays a single token.",
+    )
+    parser.add_argument(
+        "--product-name",
+        type=str,
+        default="Boa Safra Acesso Remoto",
+        help="The name shown to the user, in the installer title and in Add/Remove Programs. Defaults to the app name when empty."
     )
     parser.add_argument(
         "-v", "--version", type=str, default="", help="The app version."
@@ -85,7 +94,7 @@ def make_parser():
         "-m",
         "--manufacturer",
         type=str,
-        default="Purslane Tech Pte. Ltd.",
+        default="Boa Safra",
         help="The app manufacturer.",
     )
     return parser
@@ -151,6 +160,8 @@ def gen_auto_component(app_name, dist_dir):
 
 
 def gen_pre_vars(args, dist_dir):
+    product_name = args.product_name or args.app_name
+
     def func(lines, index_start):
         upgrade_code = uuid.uuid5(uuid.NAMESPACE_OID, app_name + ".exe")
 
@@ -158,8 +169,8 @@ def gen_pre_vars(args, dist_dir):
         to_insert_lines = [
             f'{indent}<?define Version="{g_version}" ?>\n',
             f'{indent}<?define Manufacturer="{args.manufacturer}" ?>\n',
-            f'{indent}<?define Product="{args.app_name}" ?>\n',
-            f'{indent}<?define Description="{args.app_name} Installer" ?>\n',
+            f'{indent}<?define Product="{product_name}" ?>\n',
+            f'{indent}<?define Description="{product_name} Installer" ?>\n',
             f'{indent}<?define ProductLower="{args.app_name.lower()}" ?>\n',
             f'{indent}<?define RegKeyRoot=".$(var.ProductLower)" ?>\n',
             f'{indent}<?define RegKeyInstall="$(var.RegKeyRoot)\\Install" ?>\n',

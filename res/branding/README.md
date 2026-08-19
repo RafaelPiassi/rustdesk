@@ -60,18 +60,9 @@ from the vector definition in `generate.py` and would discard the real art.
 `flutter/android/app/src/main/res/values/ic_launcher_background.xml`; change it
 there too if the palette moves.
 
-## What is *not* rebranded
+## Naming
 
-The binary, the Linux package and service names, the configuration directory
-and the `rustdesk://` URI scheme are all still `rustdesk`. That keeps
-`build.py` and every packaging recipe working unchanged. Only what the user
-sees was renamed to "Boa Safra Acesso Remoto":
-
-- `res/rustdesk.desktop`, `res/rustdesk-link.desktop` (Linux launcher)
-- `flutter/android/app/src/main/AndroidManifest.xml` and `res/values/strings.xml`
-- `flutter/windows/runner/Runner.rc` (executable properties)
-- `flutter/macos/Runner/Info.plist` (`CFBundleDisplayName`)
-
-Strings that come from the Rust side at runtime — the window title, the tray
-tooltip, the About box — still read "RustDesk", because they resolve through
-`hbb_common::config::APP_NAME`, which lives in the `libs/hbb_common` submodule.
+The identity (`BoaSafra`), the display name (`Boa Safra Acesso Remoto`) and the
+binary/package name (`boasafra`) are documented in
+[`BOASAFRA.md`](../../BOASAFRA.md), together with the version scheme and how to
+build the Windows installer. This file covers the artwork only.
