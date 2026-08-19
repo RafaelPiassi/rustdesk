@@ -44,6 +44,11 @@ so the first release off RustDesk 1.4.9 is `boasafra-v1.4.9-1`, the next
 rebuild of the same base is `boasafra-v1.4.9-2`, and rebasing onto RustDesk
 1.5.0 starts `boasafra-v1.5.0-1`.
 
+```sh
+git tag -a boasafra-v1.4.9-1 -m "Boa Safra Acesso Remoto, based on RustDesk 1.4.9"
+git push origin boasafra-v1.4.9-1
+```
+
 Two things follow from this:
 
 - The MSI declares `AllowSameVersionUpgrades="yes"`, so installing a newer
