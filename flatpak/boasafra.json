@@ -1,12 +1,12 @@
 {
-  "id": "com.rustdesk.RustDesk",
+  "id": "com.boasafra.BoaSafra",
   "runtime": "org.freedesktop.Platform",
   "runtime-version": "24.08",
   "sdk": "org.freedesktop.Sdk",
-  "command": "rustdesk",
+  "command": "boasafra",
   "cleanup": ["/include", "/lib/pkgconfig", "/share/gtk-doc"],
-  "rename-desktop-file": "rustdesk.desktop",
-  "rename-icon": "rustdesk",
+  "rename-desktop-file": "boasafra.desktop",
+  "rename-icon": "boasafra",
   "modules": [
     "shared-modules/libappindicator/libappindicator-gtk3-12.10.json",
     {
@@ -22,21 +22,21 @@
       ]
     },
     {
-      "name": "rustdesk",
+      "name": "boasafra",
       "buildsystem": "simple",
       "build-commands": [
-        "bsdtar -Oxf rustdesk.deb data.tar.xz | bsdtar -xf -",
+        "bsdtar -Oxf boasafra.deb data.tar.xz | bsdtar -xf -",
         "cp -r usr/* /app/",
-        "mkdir -p /app/bin && ln -s /app/share/rustdesk/rustdesk /app/bin/rustdesk"
+        "mkdir -p /app/bin && ln -s /app/share/boasafra/boasafra /app/bin/boasafra"
       ],
       "sources": [
         {
           "type": "file",
-          "path": "rustdesk.deb"
+          "path": "boasafra.deb"
         },
         {
           "type": "file",
-          "path": "com.rustdesk.RustDesk.metainfo.xml"
+          "path": "com.boasafra.BoaSafra.metainfo.xml"
         }
       ]
     }

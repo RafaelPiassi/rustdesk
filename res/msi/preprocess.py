@@ -27,15 +27,15 @@ g_arpsystemcomponent = {
     },
     "Contact": {
         "msi": "ARPCONTACT",
-        "v": "https://github.com/rustdesk/rustdesk",
+        "v": "https://github.com/RafaelPiassi/rustdesk",
     },
     "HelpLink": {
         "msi": "ARPHELPLINK",
-        "v": "https://github.com/rustdesk/rustdesk/issues/",
+        "v": "https://github.com/RafaelPiassi/rustdesk/issues/",
     },
     "ReadMe": {
         "msi": "ARPREADME",
-        "v": "https://github.com/rustdesk/rustdesk",
+        "v": "https://github.com/RafaelPiassi/rustdesk",
     },
 }
 
@@ -48,7 +48,7 @@ def make_parser():
         "-d",
         "--dist-dir",
         type=str,
-        default="../../rustdesk",
+        default="../../boasafra",
         help="The dist directory to install.",
     )
     parser.add_argument(
@@ -73,7 +73,16 @@ def make_parser():
         help='Connection type, e.g. "incoming", "outgoing". Default is empty, means incoming-outgoing',
     )
     parser.add_argument(
-        "--app-name", type=str, default="RustDesk", help="The app name."
+        "--app-name",
+        type=str,
+        default="BoaSafra",
+        help="The app identity: the executable base name, the registry key root and the URL protocol all derive from it, so it stays a single token.",
+    )
+    parser.add_argument(
+        "--product-name",
+        type=str,
+        default="Boa Safra Acesso Remoto",
+        help="The name shown to the user, in the installer title and in Add/Remove Programs. Defaults to the app name when empty."
     )
     parser.add_argument(
         "-v", "--version", type=str, default="", help="The app version."
@@ -85,7 +94,7 @@ def make_parser():
         "-m",
         "--manufacturer",
         type=str,
-        default="Purslane Tech Pte. Ltd.",
+        default="Boa Safra",
         help="The app manufacturer.",
     )
     return parser
@@ -151,6 +160,8 @@ def gen_auto_component(app_name, dist_dir):
 
 
 def gen_pre_vars(args, dist_dir):
+    product_name = args.product_name or args.app_name
+
     def func(lines, index_start):
         upgrade_code = uuid.uuid5(uuid.NAMESPACE_OID, app_name + ".exe")
 
@@ -158,8 +169,14 @@ def gen_pre_vars(args, dist_dir):
         to_insert_lines = [
             f'{indent}<?define Version="{g_version}" ?>\n',
             f'{indent}<?define Manufacturer="{args.manufacturer}" ?>\n',
+            # Product is the identity: the WiX package names the installed
+            # executable, the service, the install folder, the AppData folder
+            # and the registry keys after it, and those have to match what the
+            # application itself derives from src/branding.rs. Only the name
+            # the user reads uses ProductDisplay.
             f'{indent}<?define Product="{args.app_name}" ?>\n',
-            f'{indent}<?define Description="{args.app_name} Installer" ?>\n',
+            f'{indent}<?define ProductDisplay="{product_name}" ?>\n',
+            f'{indent}<?define Description="{product_name} Installer" ?>\n',
             f'{indent}<?define ProductLower="{args.app_name.lower()}" ?>\n',
             f'{indent}<?define RegKeyRoot=".$(var.ProductLower)" ?>\n',
             f'{indent}<?define RegKeyInstall="$(var.RegKeyRoot)\\Install" ?>\n',
@@ -442,16 +459,24 @@ def gen_content_between_tags(filename, tag_start, tag_end, func):
 
 
 def prepare_resources():
-    icon_src = Path(sys.argv[0]).parent.joinpath("../icon.ico")
-    icon_dst = Path(sys.argv[0]).parent.joinpath("Package/Resources/icon.ico")
-    if icon_src.exists():
-        icon_dst.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy(icon_src, icon_dst)
-        return True
-    else:
+    here = Path(sys.argv[0]).parent
+    resources = here.joinpath("Package/Resources")
+    icon_src = here.joinpath("../icon.ico")
+    if not icon_src.exists():
         # unreachable
         print(f"Error: icon.ico not found in {icon_src}")
         return False
+    resources.mkdir(parents=True, exist_ok=True)
+    shutil.copy(icon_src, resources.joinpath("icon.ico"))
+
+    # Branded installer artwork. Package/Resources is generated, so the
+    # bitmaps live with the rest of the brand and are copied in here;
+    # gen_custom_dialog_bitmaps() then wires up whichever ones are present.
+    branding = here.joinpath("../branding/boasafra/msi")
+    if branding.is_dir():
+        for bitmap in sorted(branding.glob("*.bmp")):
+            shutil.copy(bitmap, resources.joinpath(bitmap.name))
+    return True
 
 
 def init_global_vars(dist_dir, app_name, args):

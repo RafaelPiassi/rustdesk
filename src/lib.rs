@@ -1,3 +1,4 @@
+pub mod branding;
 mod keyboard;
 /// cbindgen:ignore
 pub mod platform;

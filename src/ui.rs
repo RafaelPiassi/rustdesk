@@ -42,7 +42,10 @@ pub fn start(args: &mut [String]) {
     #[cfg(all(target_os = "linux", feature = "inline"))]
     {
         let app_dir = std::env::var("APPDIR").unwrap_or("".to_string());
-        let mut so_path = "/usr/share/rustdesk/libsciter-gtk.so".to_owned();
+        // Must track the install directory the packaging uses, which is named
+        // after the app (see build.py and the rpm/deb recipes).
+        let app = crate::get_app_name().to_lowercase();
+        let mut so_path = format!("/usr/share/{app}/libsciter-gtk.so");
         for (prefix, dir) in [
             ("", "/usr"),
             ("", "/app"),
@@ -51,7 +54,7 @@ pub fn start(args: &mut [String]) {
         ]
         .iter()
         {
-            let path = format!("{prefix}{dir}/share/rustdesk/libsciter-gtk.so");
+            let path = format!("{prefix}{dir}/share/{app}/libsciter-gtk.so");
             if std::path::Path::new(&path).exists() {
                 so_path = path;
                 break;

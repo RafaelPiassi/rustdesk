@@ -4,13 +4,22 @@ version = "1.4.9"
 authors = ["rustdesk <info@rustdesk.com>"]
 edition = "2021"
 build= "build.rs"
-description = "RustDesk Remote Desktop"
-default-run = "rustdesk"
+description = "Boa Safra Acesso Remoto"
+default-run = "boasafra"
 rust-version = "1.75"
 
 [lib]
+# The crate and library names stay `rustdesk`/`librustdesk`: they are internal,
+# and the Dart FFI loads the library by that filename (flutter/lib/models/native_model.dart).
 name = "librustdesk"
 crate-type = ["cdylib", "staticlib", "rlib"]
+
+# The shipped executable, on the other hand, carries the brand. Declaring
+# src/main.rs explicitly also stops cargo inferring a second `rustdesk` binary
+# from the same source.
+[[bin]]
+name = "boasafra"
+path = "src/main.rs"
 
 [[bin]]
 name = "naming"
