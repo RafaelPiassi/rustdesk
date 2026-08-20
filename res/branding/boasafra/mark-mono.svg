@@ -1,5 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
-<mask id="seed-gap-a" maskUnits="userSpaceOnUse" x="0" y="0" width="512" height="512"><rect width="512" height="512" fill="#fff"/><circle cx="190" cy="206" r="82" fill="#000"/></mask>
-<path d="M 352 148 C 352 96, 276 74, 220 104 C 156 138, 160 212, 244 246 C 336 284, 342 350, 288 388 C 232 428, 152 408, 144 358" fill="none" stroke="#FFFFFF" stroke-width="86" stroke-linecap="round" mask="url(#seed-gap-a)"/>
-<circle cx="190" cy="206" r="66" fill="#FFFFFF"/>
-</svg>

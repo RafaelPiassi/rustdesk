@@ -1,64 +1,64 @@
 # Boa Safra branding
 
-This client ships with the Boa Safra identity instead of the upstream RustDesk
-one. Everything visual is derived from a handful of SVG sources in
-[`boasafra/`](boasafra), so the whole application — desktop, mobile, tray and
-the Windows installer — can be re-skinned by editing those sources and running
-one script.
+Every icon, logo and installer bitmap in this repository is generated from two
+files, and those two files are the official Boa Safra artwork:
 
-## Sources
+| File | What it is |
+| --- | --- |
+| [`boasafra/logo-light.svg`](boasafra/logo-light.svg) | the full lockup, for light backgrounds |
+| [`boasafra/logo-dark.svg`](boasafra/logo-dark.svg) | the full lockup reversed, for dark backgrounds |
 
-| File | What it is | Where it ends up |
-| --- | --- | --- |
-| `emblem.svg` | the square mark on a rounded green tile | every application icon |
-| `emblem-square.svg` | the same mark, hard-edged | reference / print |
-| `mark.svg` | the S and its seed, transparent background | Android adaptive icon, installer panel |
-| `mark-mono.svg` | the mark in a single colour | tray icons, Android status bar |
-| `logo-light.svg` | full lockup for light backgrounds | the app's home screen in light theme |
-| `logo-dark.svg` | full lockup for dark backgrounds | the app's home screen in dark theme |
-| `logo-dark-mono.svg` | all-white lockup | alternative for `logo-dark.svg` |
-| `logo-header.svg` | lockup on an opaque canvas | the README banner |
-| `wordmark-light.svg` / `wordmark-mono.svg` | "BOA SAFRA" without the mark | installer side panel |
-| `msi/*.bmp` | WiX banner and dialog artwork | the Windows installer |
+There is deliberately no third file for the square mark. The generator crops it
+out of the lockup by measuring the rendered drawing — it finds the widest empty
+column between the mark and the wordmark — so the crop follows the artwork
+instead of being a second copy that can drift from it.
 
-## Regenerating everything
+## Regenerating
 
 ```sh
-pip install cairosvg pillow fonttools
+pip install cairosvg pillow numpy
 python3 res/branding/boasafra/generate.py
 ```
 
-That rewrites every icon, logo and installer bitmap in the repository from the
-sources above. It is safe to re-run: the outputs are deterministic.
+That rewrites roughly fifty files: the Linux icon set, the Windows `.ico`, the
+macOS `.icns`, the Android launcher, adaptive and status-bar icons across five
+densities, the full iOS icon set, the tray icons, the in-app logo for both
+themes, the README banner, and the two WiX installer bitmaps. It is
+deterministic and safe to re-run.
 
-## Dropping in the official artwork
+To update the brand, replace the two SVGs and run it again. Nothing else needs
+editing.
 
-The reconstruction in `generate.py` was drawn from the Boa Safra logo rather
-than exported from the original files. To replace it with the official art:
+## How the two lockups are used
 
-1. Overwrite `boasafra/emblem.svg`, `boasafra/logo-light.svg` and
-   `boasafra/logo-dark.svg` with the real files. A `.png` with the same base
-   name is used in preference to the `.svg`, so bitmap artwork works too —
-   supply it at 1024x1024 for the emblem.
-2. Do the same for `mark.svg` and `mark-mono.svg` if you have transparent
-   versions of the mark; otherwise leave them, they only feed the Android
-   adaptive icon and the tray.
-3. Run the command above.
+Both draw the mark on **transparency**, so anything square has to supply its own
+ground. That is what decides which source feeds which asset:
 
-Do **not** pass `--rebuild-sources` afterwards: that flag redraws the sources
-from the vector definition in `generate.py` and would discard the real art.
+- **Application icons** take the mark from `logo-light.svg` — dark green and
+  olive — and set it on white, inset slightly so it does not read as a crop.
+- **Anything on a dark ground** — the macOS menu bar, the Android status bar,
+  the installer's side panel — takes the mark from `logo-dark.svg`, which is
+  already the reversed, white version. The light-theme tray icon is that same
+  silhouette painted black.
+- **The in-app logo** uses each lockup whole, picked by theme: `loadLogo()` in
+  `flutter/lib/common.dart` resolves `assets/logo_light.png` or
+  `assets/logo_dark.png` from `Theme.of(context).brightness`.
 
-## Brand colours
+The Illustrator `<style>` block is inlined into presentation attributes on every
+SVG that ships, because `flutter_svg` and some icon loaders ignore CSS.
 
-| Token | Hex | Used for |
+## Colours
+
+| Token | Hex | Where |
 | --- | --- | --- |
-| dark green | `#1B5632` | icon background, "SAFRA", Android adaptive background |
-| light green | `#8CBB2E` | the seed, "BOA" |
-| white | `#FFFFFF` | the S, reversed lockups |
+| dark green | `#304929` | the mark, "SAFRA", the installer's side panel |
+| light green | `#9DAF40` | the seed, "BOA" |
+| white | `#FFFFFF` | the icon ground, the reversed lockup |
 
-`#1B5632` is also set in
-`flutter/android/app/src/main/res/values/ic_launcher_background.xml`; change it
-there too if the palette moves.
+Both greens are read straight from the artwork; the generator does not invent
+them. The one place a colour is written by hand is
+`flutter/android/app/src/main/res/values/ic_launcher_background.xml`, which is
+white to match the icon ground.
 
 ## Naming
 

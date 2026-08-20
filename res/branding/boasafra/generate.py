@@ -1,221 +1,145 @@
 #!/usr/bin/env python3
 """Regenerate every Boa Safra brand asset shipped with this client.
 
-The brand lives in three SVG sources next to this script:
+Two files are the source of truth, and they are the official artwork:
 
-    emblem.svg        the square mark, used for every application icon
     logo-light.svg    the full lockup, for light backgrounds
     logo-dark.svg     the full lockup, for dark backgrounds
 
-Replace those files with the official artwork (SVG, or a PNG with the same
-base name) and re-run this script to push the new art into every platform:
+Everything else is derived. The square emblem that becomes the application
+icon is cropped out of the lockup at build time rather than kept as its own
+file, so there is no second copy to drift: the crop is measured from the
+rendered artwork, not hardcoded, and it follows the logo if the logo changes.
 
     python3 res/branding/boasafra/generate.py
 
-Passing --rebuild-sources redraws the three SVGs from the vector definition
-below, discarding any artwork that was dropped in. Requires cairosvg,
-Pillow and fonttools.
+Requires cairosvg, Pillow and numpy.
 """
 
-import argparse
+import io
 import os
+import re
 import shutil
 import sys
 
 try:
     import cairosvg
+    import numpy as np
     from PIL import Image
 except ImportError as exc:  # pragma: no cover - developer convenience
-    sys.exit("missing dependency (%s); run: pip install cairosvg pillow fonttools" % exc)
+    sys.exit("missing dependency (%s); run: pip install cairosvg pillow numpy" % exc)
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.abspath(os.path.join(HERE, "..", "..", ".."))
 
-DARK = "#1B5632"   # Boa Safra dark green
-LIGHT = "#8CBB2E"  # Boa Safra light green
+LOGO_LIGHT = os.path.join(HERE, "logo-light.svg")
+LOGO_DARK = os.path.join(HERE, "logo-dark.svg")
+
+# Boa Safra's palette, as it appears in the official artwork.
+DARK = "#304929"
+LIGHT = "#9DAF40"
 WHITE = "#FFFFFF"
 
-# --- the mark -------------------------------------------------------------
-# A 512x512 grid. The "S" is a single stroked curve; the seed is a disc set
-# into the upper counter, held off the stroke by a halo of background colour.
-S_PATH = ("M 352 148 C 352 96, 276 74, 220 104 C 156 138, 160 212, 244 246 "
-          "C 336 284, 342 350, 288 388 C 232 428, 152 408, 144 358")
-S_WIDTH = 86
-SEED = (190, 206, 66)  # cx, cy, r
-SEED_HALO = 16
-
-# --- the wordmark ---------------------------------------------------------
-WORDMARK_FONT = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
-WORDMARK_TRACKING = 0.02   # em
-WORDMARK_WEIGHT = 90       # font units of extra stroke, to reach a black weight
+MEASURE_SCALE = 16  # px per viewBox unit when measuring the artwork
 
 
-def mark(stroke_color, seed_color, halo_color, uid="a"):
-    """The S and its seed, on a transparent 512x512 canvas.
+# --- reading the official artwork -----------------------------------------
 
-    The seed never touches the S. On a solid background the gap is painted in
-    the background colour; on a transparent one it is masked out of the stroke.
-    """
-    cx, cy, r = SEED
-    stroke = ('<path d="%s" fill="none" stroke="%s" stroke-width="%d" '
-              'stroke-linecap="round"%%s/>' % (S_PATH, stroke_color, S_WIDTH))
-    seed = '<circle cx="%d" cy="%d" r="%d" fill="%s"/>' % (cx, cy, r, seed_color)
-    if halo_color is None:
-        mask_id = "seed-gap-" + uid
-        return ('<mask id="%s" maskUnits="userSpaceOnUse" x="0" y="0" width="512" height="512">'
-                '<rect width="512" height="512" fill="#fff"/>'
-                '<circle cx="%d" cy="%d" r="%d" fill="#000"/></mask>\n%s\n%s'
-                % (mask_id, cx, cy, r + SEED_HALO,
-                   stroke % (' mask="url(#%s)"' % mask_id), seed))
-    halo = ('<circle cx="%d" cy="%d" r="%d" fill="none" stroke="%s" stroke-width="%d"/>'
-            % (cx, cy, r + SEED_HALO // 2, halo_color, SEED_HALO))
-    return "%s\n%s\n%s" % (stroke % "", halo, seed)
+def view_box(svg):
+    m = re.search(r'viewBox\s*=\s*"([-\d.eE]+)\s+([-\d.eE]+)\s+([-\d.eE]+)\s+([-\d.eE]+)"', svg)
+    if not m:
+        raise SystemExit("no viewBox in the source artwork")
+    return tuple(float(v) for v in m.groups())
 
 
-def emblem_svg(radius=96):
-    return ('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" '
-            'width="512" height="512">\n'
-            '<rect width="512" height="512" rx="%d" ry="%d" fill="%s"/>\n%s\n</svg>\n'
-            % (radius, radius, DARK, mark(WHITE, LIGHT, DARK)))
+def with_view_box(svg, box):
+    """The same drawing, cropped to `box`. The sources carry no width/height,
+    so replacing the viewBox is enough to reframe them."""
+    return re.sub(r'viewBox\s*=\s*"[^"]*"',
+                  'viewBox="%.4f %.4f %.4f %.4f"' % box, svg, count=1)
 
 
-def mark_svg(stroke_color=WHITE, seed_color=LIGHT):
-    return ('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" '
-            'width="512" height="512">\n%s\n</svg>\n'
-            % mark(stroke_color, seed_color, None))
+def inline_styles(svg):
+    """Turn the `<style>` class rules Illustrator emits into presentation
+    attributes. flutter_svg and several icon loaders ignore CSS, and these
+    files are shipped as SVG, not only rasterised."""
+    rules = {}
+    for block in re.findall(r"<style[^>]*>(.*?)</style>", svg, re.S):
+        for name, body in re.findall(r"\.([A-Za-z0-9_-]+)\s*\{([^}]*)\}", block):
+            attrs = {}
+            for decl in body.split(";"):
+                if ":" in decl:
+                    prop, value = decl.split(":", 1)
+                    attrs[prop.strip()] = value.strip()
+            rules[name] = attrs
+
+    def replace(match):
+        attrs = rules.get(match.group(1))
+        if attrs is None:
+            return match.group(0)
+        return " ".join('%s="%s"' % kv for kv in attrs.items())
+
+    svg = re.sub(r'class="([A-Za-z0-9_-]+)"', replace, svg)
+    return re.sub(r"<style[^>]*>.*?</style>", "", svg, flags=re.S)
 
 
-def wordmark_path(text):
-    """Outline `text` as an SVG path, plus its tight bounds, in font units."""
-    from fontTools.ttLib import TTFont
-    from fontTools.pens.svgPathPen import SVGPathPen
-    from fontTools.pens.transformPen import TransformPen
-    from fontTools.pens.boundsPen import BoundsPen
-    from fontTools.misc.transform import Identity
-
-    font = TTFont(WORDMARK_FONT)
-    glyphs = font.getGlyphSet()
-    cmap = font.getBestCmap()
-    upem = font["head"].unitsPerEm
-
-    def run(pen):
-        x = 0.0
-        for ch in text:
-            glyph = glyphs[cmap[ord(ch)]]
-            glyph.draw(TransformPen(pen, Identity.translate(x, 0)))
-            x += glyph.width + WORDMARK_TRACKING * upem
-
-    out = SVGPathPen(glyphs)
-    run(out)
-    bounds = BoundsPen(glyphs)
-    run(bounds)
-    x0, y0, x1, y1 = bounds.bounds
-    half = WORDMARK_WEIGHT / 2.0
-    return out.getCommands(), (x0 - half, y0 - half, x1 + half, y1 + half)
+def on_white(svg):
+    """The same drawing over an opaque white rectangle covering its viewBox."""
+    x, y, w, h = view_box(svg)
+    rect = '<rect x="%.4f" y="%.4f" width="%.4f" height="%.4f" fill="%s"/>' % (x, y, w, h, WHITE)
+    return re.sub(r"(<svg\b[^>]*>)", r"\1" + rect, svg, count=1)
 
 
-def wordmark_group(text, color, box):
-    """Fit `text` into box=(x, y, w, h) of the lockup's coordinate system."""
-    d, (x0, y0, x1, y1) = wordmark_path(text)
-    x, y, w, h = box
-    sx = w / (x1 - x0)
-    sy = h / (y1 - y0)
-    # The glyph outlines are y-up; the lockup is y-down.
-    return ('<g transform="translate(%.3f,%.3f) scale(%.6f,%.6f) translate(%.3f,%.3f)">'
-            '<path d="%s" fill="%s" stroke="%s" stroke-width="%d" stroke-linejoin="round"/>'
-            '</g>' % (x, y + h, sx, -sy, -x0, -y0, d, color, color, WORDMARK_WEIGHT))
-
-
-# Lockup geometry, in a 1104x415 box that matches the official proportions.
-LOCKUP_W, LOCKUP_H = 1104, 415
-EMBLEM_BOX = (0, 12, 390, 390)
-BOA_BOX = (432, 4, 672, 246)
-SAFRA_BOX = (432, 266, 672, 146)
-
-
-def lockup_svg(emblem_fill, s_color, seed_color, boa_color, safra_color):
-    x, y, w, h = EMBLEM_BOX
-    body = ""
-    if emblem_fill:
-        body += '<rect x="%d" y="%d" width="%d" height="%d" fill="%s"/>\n' % (x, y, w, h, emblem_fill)
-    body += ('<g transform="translate(%d,%d) scale(%.6f)">%s</g>\n'
-             % (x, y, w / 512.0, mark(s_color, seed_color, emblem_fill, uid="lockup")))
-    body += wordmark_group("BOA", boa_color, BOA_BOX) + "\n"
-    body += wordmark_group("SAFRA", safra_color, SAFRA_BOX) + "\n"
-    return ('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 %d %d" '
-            'width="%d" height="%d">\n%s</svg>\n'
-            % (LOCKUP_W, LOCKUP_H, LOCKUP_W, LOCKUP_H, body))
-
-
-WORDMARK_W, WORDMARK_H = 672, 412
-
-
-def wordmark_svg(boa_color, safra_color):
-    body = wordmark_group("BOA", boa_color, (0, 0, WORDMARK_W, 246)) + "\n"
-    body += wordmark_group("SAFRA", safra_color, (0, 262, WORDMARK_W, 146)) + "\n"
-    return ('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 %d %d" '
-            'width="%d" height="%d">\n%s</svg>\n'
-            % (WORDMARK_W, WORDMARK_H, WORDMARK_W, WORDMARK_H, body))
-
-
-HEADER_W, HEADER_H = 1200, 420
-
-
-def header_svg():
-    scale = 0.78
-    w, h = LOCKUP_W * scale, LOCKUP_H * scale
-    return ('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 %d %d" '
-            'width="%d" height="%d">\n'
-            '<rect width="%d" height="%d" fill="%s"/>\n'
-            '<g transform="translate(%.2f,%.2f) scale(%s)">%s</g>\n</svg>\n'
-            % (HEADER_W, HEADER_H, HEADER_W, HEADER_H, HEADER_W, HEADER_H, WHITE,
-               (HEADER_W - w) / 2, (HEADER_H - h) / 2, scale,
-               lockup_svg(DARK, WHITE, LIGHT, LIGHT, DARK)
-               .split(">\n", 1)[1].rsplit("</svg>", 1)[0]))
-
-
-SOURCES = {
-    "emblem.svg": lambda: emblem_svg(),
-    "emblem-square.svg": lambda: emblem_svg(radius=0),
-    "mark.svg": lambda: mark_svg(),
-    "mark-mono.svg": lambda: mark_svg(WHITE, WHITE),
-    "logo-light.svg": lambda: lockup_svg(DARK, WHITE, LIGHT, LIGHT, DARK),
-    "logo-dark.svg": lambda: lockup_svg(None, WHITE, LIGHT, LIGHT, WHITE),
-    "logo-dark-mono.svg": lambda: lockup_svg(None, WHITE, WHITE, WHITE, WHITE),
-    "wordmark-light.svg": lambda: wordmark_svg(LIGHT, DARK),
-    "wordmark-mono.svg": lambda: wordmark_svg(WHITE, WHITE),
-    "logo-header.svg": lambda: header_svg(),
-}
-
-
-def write_sources(force):
-    for name, build in SOURCES.items():
-        path = os.path.join(HERE, name)
-        if os.path.exists(path) and not force:
-            continue
-        with open(path, "w") as fh:
-            fh.write(build())
-        print("source  %s" % os.path.relpath(path, ROOT))
-
-
-def render(source, width, height=None):
-    """Rasterise a brand source to an RGBA image."""
-    height = height or width
-    svg = os.path.join(HERE, source)
-    png = os.path.splitext(svg)[0] + ".png"
-    if os.path.exists(png):  # official artwork dropped in as a bitmap
-        img = Image.open(png).convert("RGBA")
-        return img.resize((width, height), Image.LANCZOS)
-    data = cairosvg.svg2png(url=svg, output_width=width, output_height=height)
-    import io
+def rasterise(svg, width, height=None):
+    data = cairosvg.svg2png(bytestring=svg.encode(), output_width=width,
+                            output_height=height)
     return Image.open(io.BytesIO(data)).convert("RGBA")
 
 
-def render_fit(source, box_w, box_h):
-    """Rasterise a lockup so it fits box_w x box_h without distortion."""
-    scale = min(box_w / LOCKUP_W, box_h / LOCKUP_H)
-    return render(source, max(1, round(LOCKUP_W * scale)), max(1, round(LOCKUP_H * scale)))
+def mark_box(svg):
+    """Where the square mark sits inside the lockup.
 
+    Measured by rendering: the mark is whatever comes before the widest empty
+    column between it and the wordmark.
+    """
+    vx, vy, vw, vh = view_box(svg)
+    img = rasterise(svg, int(vw * MEASURE_SCALE), int(vh * MEASURE_SCALE))
+    ink = np.array(img)[..., 3] > 8
+    columns = ink.any(axis=0)
+    drawn = np.where(columns)[0]
+
+    gutters, start = [], None
+    for i, empty in enumerate(~columns):
+        if empty and start is None:
+            start = i
+        elif not empty and start is not None:
+            gutters.append((start, i))
+            start = None
+    interior = [g for g in gutters if g[0] > drawn[0] and g[1] < drawn[-1]]
+    if not interior:
+        raise SystemExit("cannot tell the mark from the wordmark in the lockup")
+    split = max(interior, key=lambda g: g[1] - g[0])[0]
+
+    region = ink[:, :split]
+    xs, ys = np.where(region.any(axis=0))[0], np.where(region.any(axis=1))[0]
+    x0, x1 = xs[0] / MEASURE_SCALE, (xs[-1] + 1) / MEASURE_SCALE
+    y0, y1 = ys[0] / MEASURE_SCALE, (ys[-1] + 1) / MEASURE_SCALE
+    return vx + x0, vy + y0, x1 - x0, y1 - y0
+
+
+def square(box):
+    """Grow a box to a square about its centre. The mark is a filled block, so
+    the padding is the same colour as its field and the seam does not show."""
+    x, y, w, h = box
+    side = max(w, h)
+    return x - (side - w) / 2, y - (side - h) / 2, side, side
+
+
+def emblem_svg(source_svg):
+    return inline_styles(with_view_box(source_svg, square(mark_box(source_svg))))
+
+
+# --- writing the assets ---------------------------------------------------
 
 def out(*parts):
     path = os.path.join(ROOT, *parts)
@@ -229,28 +153,26 @@ def save(img, *parts, **kw):
     print("asset   %s  %dx%d" % (os.path.relpath(path, ROOT), img.width, img.height))
 
 
-def opaque(img, background=DARK):
-    bg = Image.new("RGBA", img.size, background)
-    return Image.alpha_composite(bg, img).convert("RGB")
+def write_text(text, *parts):
+    path = out(*parts)
+    with open(path, "w", encoding="utf-8") as fh:
+        fh.write(text)
+    print("asset   %s  (svg)" % os.path.relpath(path, ROOT))
 
 
-def silhouette(img, color=(255, 255, 255)):
-    """Keep the alpha channel, flatten every colour to `color`."""
-    solid = Image.new("RGBA", img.size, color + (255,))
-    solid.putalpha(img.getchannel("A"))
-    return solid
+def opaque(img, background=WHITE):
+    return Image.alpha_composite(Image.new("RGBA", img.size, background), img).convert("RGB")
 
 
 def crop_alpha(img):
-    """Trim fully transparent margins, so the art can be sized deliberately."""
     box = img.getchannel("A").getbbox()
     return img.crop(box) if box else img
 
 
 def inset(img, canvas, ratio):
-    """Centre `img` scaled to `ratio` of a transparent canvas x canvas square."""
-    box = max(1, round(canvas * ratio))
-    scale = min(box / img.width, box / img.height)
+    """Centre `img` at `ratio` of a transparent canvas x canvas square."""
+    limit = max(1, round(canvas * ratio))
+    scale = min(limit / img.width, limit / img.height)
     size = (max(1, round(img.width * scale)), max(1, round(img.height * scale)))
     out_img = Image.new("RGBA", (canvas, canvas), (0, 0, 0, 0))
     out_img.paste(img.resize(size, Image.LANCZOS),
@@ -258,11 +180,22 @@ def inset(img, canvas, ratio):
     return out_img
 
 
-def copy_source(source, *parts):
-    path = out(*parts)
-    shutil.copyfile(os.path.join(HERE, source), path)
-    print("asset   %s  (svg)" % os.path.relpath(path, ROOT))
+def recolour(shape, color):
+    """Keep a mark's silhouette, paint it a single colour."""
+    solid = Image.new("RGBA", shape.size, tuple(color) + (255,))
+    solid.putalpha(shape.getchannel("A"))
+    return solid
 
+
+def on_ground(mark, canvas, ratio, background):
+    """The mark centred on a filled square. Both lockups draw the mark on
+    transparency, so every icon has to supply the ground itself."""
+    square_img = Image.new("RGBA", (canvas, canvas), background)
+    square_img.alpha_composite(inset(crop_alpha(mark), canvas, ratio))
+    return square_img
+
+
+LOCKUP_BOX = (1200, 300)  # loadLogo() draws into 300x60; ship it at 4x
 
 IOS_ICONS = [
     (20, 1), (20, 2), (20, 3), (29, 1), (29, 2), (29, 3), (40, 1), (40, 2),
@@ -277,9 +210,34 @@ ANDROID_DENSITIES = {
     "xxxhdpi": (192, 432, 96),
 }
 
+MSI_BANNER = (493, 58)
+MSI_DIALOG = (493, 312)
+MSI_DIALOG_ART_W = 164
 
-def build_assets():
-    icon = render("emblem.svg", 1024)
+
+def fit(svg, box_w, box_h):
+    _, _, vw, vh = view_box(svg)
+    scale = min(box_w / vw, box_h / vh)
+    return rasterise(svg, max(1, round(vw * scale)), max(1, round(vh * scale)))
+
+
+def main():
+    for path in (LOGO_LIGHT, LOGO_DARK):
+        if not os.path.exists(path):
+            sys.exit("missing source artwork: %s" % os.path.relpath(path, ROOT))
+
+    light = open(LOGO_LIGHT, encoding="utf-8").read()
+    dark = open(LOGO_DARK, encoding="utf-8").read()
+
+    emblem = emblem_svg(light)
+    reversed_emblem = emblem_svg(dark)
+    ICON_INSET = 0.88
+    icon = on_ground(rasterise(emblem, 1024), 1024, ICON_INSET, WHITE)
+    # The reversed mark, white on transparency, for anything drawn on a dark
+    # ground: the menu bar, the status bar and the installer's side panel.
+    figure = crop_alpha(rasterise(reversed_emblem, 512))
+    print("emblem  cropped from logo-light.svg at %s" %
+          ("%.2f %.2f %.2f %.2f" % square(mark_box(light))))
 
     # --- shared / Linux ---------------------------------------------------
     save(icon, "res", "icon.png")
@@ -289,23 +247,23 @@ def build_assets():
     save(icon.resize((256, 256), Image.LANCZOS), "res", "128x128@2x.png")
     save(icon, "res", "icon.ico", format="ICO",
          sizes=[(16, 16), (32, 32), (48, 48), (64, 64), (128, 128), (256, 256)])
-    copy_source("emblem.svg", "res", "scalable.svg")
-    copy_source("emblem.svg", "res", "logo.svg")
+    write_text(emblem, "res", "scalable.svg")
+    write_text(emblem, "res", "logo.svg")
 
     # --- trays ------------------------------------------------------------
-    mono = crop_alpha(render("mark-mono.svg", 512))
-    save(inset(silhouette(mono), 48, 0.86), "res", "mac-tray-dark-x2.png")
-    save(inset(silhouette(mono, (0, 0, 0)), 48, 0.86), "res", "mac-tray-light-x2.png")
+    save(inset(figure, 48, 0.92), "res", "mac-tray-dark-x2.png")
+    save(inset(recolour(figure, (0, 0, 0)), 48, 0.92), "res", "mac-tray-light-x2.png")
     save(icon, "res", "tray-icon.ico", format="ICO",
          sizes=[(16, 16), (24, 24), (32, 32), (48, 48), (64, 64)])
 
     # --- Flutter ----------------------------------------------------------
-    copy_source("emblem.svg", "flutter", "assets", "icon.svg")
+    write_text(emblem, "flutter", "assets", "icon.svg")
     save(icon.resize((512, 512), Image.LANCZOS), "flutter", "assets", "icon.png")
-    # loadLogo() renders inside a 300x60 box; ship it at 4x for hidpi screens.
-    save(render_fit("logo-light.svg", 1200, 240), "flutter", "assets", "logo_light.png")
-    save(render_fit("logo-dark.svg", 1200, 240), "flutter", "assets", "logo_dark.png")
-    copy_source("logo-header.svg", "res", "logo-header.svg")
+    save(fit(light, *LOCKUP_BOX), "flutter", "assets", "logo_light.png")
+    save(fit(dark, *LOCKUP_BOX), "flutter", "assets", "logo_dark.png")
+    # The README banner needs its own ground: the lockup is drawn on
+    # transparency, and the dark green would be unreadable on GitHub's dark theme.
+    write_text(on_white(inline_styles(light)), "res", "logo-header.svg")
 
     # --- Windows ----------------------------------------------------------
     save(icon, "flutter", "windows", "runner", "resources", "app_icon.ico", format="ICO",
@@ -315,37 +273,20 @@ def build_assets():
     save(icon, "flutter", "macos", "Runner", "AppIcon.icns", format="ICNS")
 
     # --- Android ----------------------------------------------------------
-    mark_img = crop_alpha(render("mark.svg", 1024))
     for density, (launcher, foreground, stat) in ANDROID_DENSITIES.items():
         base = ("flutter", "android", "app", "src", "main", "res", "mipmap-" + density)
-        square = icon.resize((launcher, launcher), Image.LANCZOS)
-        save(square, *base, "ic_launcher.png")
-        save(square, *base, "ic_launcher_round.png")
-        # Adaptive icons keep only the inner 72/108 of the canvas visible.
-        save(inset(mark_img, foreground, 72 / 108), *base, "ic_launcher_foreground.png")
-        save(inset(silhouette(mono), stat, 0.92), *base, "ic_stat_logo.png")
+        block = icon.resize((launcher, launcher), Image.LANCZOS)
+        save(block, *base, "ic_launcher.png")
+        save(block, *base, "ic_launcher_round.png")
+        # Adaptive icons only keep the inner 72/108 of the canvas; the mark is
+        # a block, so it is inset rather than bled to the edges.
+        save(inset(crop_alpha(rasterise(emblem, 512)), foreground, 72 / 108 * 0.86),
+             *base, "ic_launcher_foreground.png")
+        save(inset(figure, stat, 0.92), *base, "ic_stat_logo.png")
     save(icon.resize((256, 256), Image.LANCZOS),
          "fastlane", "metadata", "android", "en-US", "images", "icon.png")
 
-    # --- Windows installer (WiX pulls these in via res/msi/preprocess.py) --
-    build_msi_bitmaps()
-
-    # --- iOS (no alpha channel allowed) -----------------------------------
-    for size, scale in IOS_ICONS:
-        px = int(round(size * scale))
-        name = "Icon-App-%gx%g@%dx.png" % (size, size, scale)
-        save(opaque(icon.resize((px, px), Image.LANCZOS)),
-             "flutter", "ios", "Runner", "Assets.xcassets", "AppIcon.appiconset", name)
-
-
-# WiX fixes the size of both dialog bitmaps; the left MSI_DIALOG_ART_W pixels
-# of the large one are artwork, the rest sits behind the installer's text.
-MSI_BANNER = (493, 58)
-MSI_DIALOG = (493, 312)
-MSI_DIALOG_ART_W = 164
-
-
-def build_msi_bitmaps():
+    # --- Windows installer ------------------------------------------------
     target = os.path.join(HERE, "msi")
     os.makedirs(target, exist_ok=True)
 
@@ -356,29 +297,23 @@ def build_msi_bitmaps():
 
     w, h = MSI_BANNER
     banner = Image.new("RGBA", MSI_BANNER, WHITE)
-    logo = render_fit("logo-light.svg", round(w * 0.46), h - 16)
+    logo = fit(light, round(w * 0.46), h - 16)
     banner.alpha_composite(logo, (w - logo.width - 14, (h - logo.height) // 2))
     store(banner.convert("RGB"), "WixUIBannerBmp.bmp")
 
     w, h = MSI_DIALOG
     dialog = Image.new("RGBA", MSI_DIALOG, WHITE)
     dialog.alpha_composite(Image.new("RGBA", (MSI_DIALOG_ART_W, h), DARK))
-    mark_art = inset(crop_alpha(render("mark.svg", 512)), MSI_DIALOG_ART_W, 0.56)
-    word_w = round(MSI_DIALOG_ART_W * 0.62)
-    word = render("wordmark-mono.svg", word_w, round(word_w * WORDMARK_H / WORDMARK_W))
-    top = (h - (mark_art.height + word.height)) // 2
-    dialog.alpha_composite(mark_art, (0, top))
-    dialog.alpha_composite(word, ((MSI_DIALOG_ART_W - word.width) // 2, top + mark_art.height))
+    art = inset(figure, MSI_DIALOG_ART_W, 0.55)
+    dialog.alpha_composite(art, (0, (h - art.height) // 2))
     store(dialog.convert("RGB"), "WixUIDialogBmp.bmp")
 
-
-def main():
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--rebuild-sources", action="store_true",
-                        help="redraw the SVG sources, discarding dropped-in artwork")
-    args = parser.parse_args()
-    write_sources(force=args.rebuild_sources)
-    build_assets()
+    # --- iOS (no alpha channel allowed) -----------------------------------
+    for size, scale in IOS_ICONS:
+        px = int(round(size * scale))
+        name = "Icon-App-%gx%g@%dx.png" % (size, size, scale)
+        save(opaque(icon.resize((px, px), Image.LANCZOS)),
+             "flutter", "ios", "Runner", "Assets.xcassets", "AppIcon.appiconset", name)
 
 
 if __name__ == "__main__":
