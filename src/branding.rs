@@ -29,21 +29,21 @@ pub const COMPANY: &str = "Boa Safra";
 /// `https://licencas.example.com`. A `BOASAFRA_LICENSE_SERVER` build
 /// environment variable overrides it, and the `license-server` option
 /// overrides both at run time.
-pub const LICENSE_SERVER: &str = "";
+pub const LICENSE_SERVER: &str = "http://Rafael-PC:8000";
 
 /// The license panel's Ed25519 public key, base64. The panel shows it on its
 /// "Chave pública" page. A `BOASAFRA_LICENSE_PUBLIC_KEY` build environment
 /// variable overrides it. Without one, every license check fails.
-pub const LICENSE_PUBLIC_KEY: &str = "";
+pub const LICENSE_PUBLIC_KEY: &str = "2WTuf0KVCCJkt/mjRiE2PmkR0SJs8BXYq0V4ceFH3Ok=";
 
 /// The ID server (hbbs) a fresh install uses, e.g. `192.168.0.10`. The relay
 /// is derived from it. A `BOASAFRA_RENDEZVOUS_SERVER` build environment
 /// variable overrides it. Empty means the public RustDesk servers.
-pub const RENDEZVOUS_SERVER: &str = "";
+pub const RENDEZVOUS_SERVER: &str = "Rafael-PC";
 
 /// That server's public key (the contents of hbbs's `id_ed25519.pub`). A
 /// `BOASAFRA_RS_PUB_KEY` build environment variable overrides it.
-pub const RS_PUB_KEY: &str = "";
+pub const RS_PUB_KEY: &str = "cacP1iQMtqW6mRLyjAGs2ir2M6S8ZDnB8m69uFHasKU=";
 
 /// Install the brand name into the global configuration.
 ///
