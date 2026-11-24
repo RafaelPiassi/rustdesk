@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
   Baixa o instalador mais recente do GitHub para a pasta compartilhada.
 

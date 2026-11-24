@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
   Sobe o servidor Boa Safra na rede local: ID/relay (hbbs/hbbr) e painel de licenças.
 
