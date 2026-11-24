@@ -36,6 +36,15 @@ pub const LICENSE_SERVER: &str = "";
 /// variable overrides it. Without one, every license check fails.
 pub const LICENSE_PUBLIC_KEY: &str = "";
 
+/// The ID server (hbbs) a fresh install uses, e.g. `192.168.0.10`. The relay
+/// is derived from it. A `BOASAFRA_RENDEZVOUS_SERVER` build environment
+/// variable overrides it. Empty means the public RustDesk servers.
+pub const RENDEZVOUS_SERVER: &str = "";
+
+/// That server's public key (the contents of hbbs's `id_ed25519.pub`). A
+/// `BOASAFRA_RS_PUB_KEY` build environment variable overrides it.
+pub const RS_PUB_KEY: &str = "";
+
 /// Install the brand name into the global configuration.
 ///
 /// Must run before anything reads the configuration, since the config
@@ -43,4 +52,32 @@ pub const LICENSE_PUBLIC_KEY: &str = "";
 /// afterwards still wins, which is why callers apply this first.
 pub fn apply() {
     *hbb_common::config::APP_NAME.write().unwrap() = APP_NAME.to_owned();
+    apply_default_server();
+}
+
+/// Point a fresh install at the build's own server. These are defaults, so a
+/// server set in the settings, or by a custom-client config, still wins.
+fn apply_default_server() {
+    use hbb_common::config::{keys, DEFAULT_SETTINGS};
+    let defaults = [
+        (
+            keys::OPTION_CUSTOM_RENDEZVOUS_SERVER,
+            option_env!("BOASAFRA_RENDEZVOUS_SERVER").unwrap_or(""),
+            RENDEZVOUS_SERVER,
+        ),
+        (
+            keys::OPTION_KEY,
+            option_env!("BOASAFRA_RS_PUB_KEY").unwrap_or(""),
+            RS_PUB_KEY,
+        ),
+    ];
+    let mut settings = DEFAULT_SETTINGS.write().unwrap();
+    for (key, build_env, constant) in defaults {
+        let value = Some(build_env.trim())
+            .filter(|v| !v.is_empty())
+            .unwrap_or(constant);
+        if !value.is_empty() {
+            settings.insert(key.to_owned(), value.to_owned());
+        }
+    }
 }

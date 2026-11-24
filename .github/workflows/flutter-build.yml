@@ -68,6 +68,9 @@ env:
   # these stay empty there and src/branding.rs, as rebranded, wins.
   BOASAFRA_LICENSE_PUBLIC_KEY: "${{ inputs.brand-pack-url == '' && vars.BOASAFRA_LICENSE_PUBLIC_KEY || '' }}"
   BOASAFRA_LICENSE_SERVER: "${{ inputs.brand-pack-url == '' && vars.BOASAFRA_LICENSE_SERVER || '' }}"
+  # The ID server (hbbs) and its public key new installs start with.
+  BOASAFRA_RENDEZVOUS_SERVER: "${{ vars.BOASAFRA_RENDEZVOUS_SERVER }}"
+  BOASAFRA_RS_PUB_KEY: "${{ vars.BOASAFRA_RS_PUB_KEY }}"
 
 jobs:
   generate-sbom:

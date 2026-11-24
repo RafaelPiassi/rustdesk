@@ -1,0 +1,39 @@
+# Servidor da rede local: ID/relay (hbbs/hbbr) e painel de licenças.
+# Suba com instalar-servidor.ps1, que também abre o firewall e mostra as chaves.
+services:
+  hbbs:
+    image: rustdesk/rustdesk-server:1.1.14
+    command: hbbs
+    restart: unless-stopped
+    volumes:
+      - ./dados/rustdesk:/root
+    ports:
+      - "21115:21115"
+      - "21116:21116"
+      - "21116:21116/udp"
+      - "21118:21118"
+    depends_on:
+      - hbbr
+
+  hbbr:
+    image: rustdesk/rustdesk-server:1.1.14
+    command: hbbr
+    restart: unless-stopped
+    volumes:
+      - ./dados/rustdesk:/root
+    ports:
+      - "21117:21117"
+      - "21119:21119"
+
+  licencas:
+    build: ../../license-panel
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      PANEL_DATA_DIR: /data
+      # Rede local sem HTTPS.
+      PANEL_SECURE_COOKIES: "0"
+    volumes:
+      - ./dados/licencas:/data
+    ports:
+      - "8000:8000"

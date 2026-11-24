@@ -93,4 +93,6 @@ fn main() {
     println!("cargo:rerun-if-changed=build.rs");
     println!("cargo:rerun-if-env-changed=BOASAFRA_LICENSE_PUBLIC_KEY");
     println!("cargo:rerun-if-env-changed=BOASAFRA_LICENSE_SERVER");
+    println!("cargo:rerun-if-env-changed=BOASAFRA_RENDEZVOUS_SERVER");
+    println!("cargo:rerun-if-env-changed=BOASAFRA_RS_PUB_KEY");
 }
