@@ -1,0 +1,11 @@
+<label>Nome / razão social <input name="name" value="{{ c.name if c }}" required></label>
+<label>CNPJ / CPF <input name="document" value="{{ c.document if c }}"></label>
+<label>E-mail <input name="email" type="email" value="{{ c.email if c }}"></label>
+<label>Telefone <input name="phone" value="{{ c.phone if c }}"></label>
+<label>Marca do instalador
+  <select name="brand_id">
+    <option value="">Padrão (Boa Safra)</option>
+    {% for b in brands %}<option value="{{ b.id }}" {{ 'selected' if c and c.brand_id == b.id }}>{{ b.display_name }}</option>{% endfor %}
+  </select>
+</label>
+<label class="wide">Observações <textarea name="notes" rows="2">{{ c.notes if c }}</textarea></label>

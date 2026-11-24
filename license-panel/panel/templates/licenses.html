@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% from "_macros.html" import license_table %}
+{% block title %}Licenças{% endblock %}
+{% block content %}
+<h1>Licenças</h1>
+<form method="get" class="toolbar">
+  <input name="q" value="{{ q }}" placeholder="Serial, cliente, computador ou ID">
+  <select name="state">
+    <option value="">Todas</option>
+    {% for k, v in STATE_LABELS.items() %}<option value="{{ k }}" {{ 'selected' if wanted == k }}>{{ v }}</option>{% endfor %}
+  </select>
+  <button>Filtrar</button>
+  <a class="button secondary" href="{{ url_for('web.licenses', q=q, state=wanted, format='csv') }}">Exportar CSV</a>
+</form>
+{{ license_table(licenses) }}
+{% endblock %}

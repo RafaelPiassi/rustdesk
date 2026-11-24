@@ -1,0 +1,25 @@
+{% set EVENT_LABELS = {
+  'issued': 'Serial gerado', 'activated': 'Ativada', 'refused': 'Ativação recusada',
+  'check_failed': 'Verificação recusada', 'renew': 'Renovada', 'expiry': 'Vencimento alterado',
+  'revoke': 'Revogada', 'unrevoke': 'Reativada', 'unbind': 'Vínculo removido', 'notes': 'Observações',
+  'deleted': 'Licença excluída', 'customer_created': 'Cliente cadastrado', 'customer_updated': 'Cliente alterado',
+  'customer_deleted': 'Cliente excluído', 'brand_created': 'Marca cadastrada', 'brand_updated': 'Marca alterada',
+  'brand_deleted': 'Marca excluída', 'build_requested': 'Instalador solicitado', 'password_changed': 'Senha alterada'} %}
+<div class="scroll">
+<table>
+  <thead><tr><th>Quando</th><th>Evento</th><th>Serial</th><th>Detalhe</th><th>Por</th></tr></thead>
+  <tbody>
+  {% for e in events %}
+    <tr>
+      <td>{{ e.at|datetime }}</td>
+      <td>{{ EVENT_LABELS.get(e.kind, e.kind) }}</td>
+      <td>{% if e.serial %}<a class="mono" href="{{ url_for('web.license', lid=e.license_id) }}">{{ e.serial }}</a>{% endif %}</td>
+      <td>{{ e.detail }}</td>
+      <td>{{ e.actor or e.ip }}</td>
+    </tr>
+  {% else %}
+    <tr><td colspan="5" class="muted">Nenhum evento.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>

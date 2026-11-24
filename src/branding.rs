@@ -25,6 +25,17 @@ pub const DISPLAY_NAME: &str = "Boa Safra Acesso Remoto";
 /// The vendor, for executable metadata and installer properties.
 pub const COMPANY: &str = "Boa Safra";
 
+/// The license panel clients activate and revalidate against, e.g.
+/// `https://licencas.example.com`. A `BOASAFRA_LICENSE_SERVER` build
+/// environment variable overrides it, and the `license-server` option
+/// overrides both at run time.
+pub const LICENSE_SERVER: &str = "";
+
+/// The license panel's Ed25519 public key, base64. The panel shows it on its
+/// "Chave pública" page. A `BOASAFRA_LICENSE_PUBLIC_KEY` build environment
+/// variable overrides it. Without one, every license check fails.
+pub const LICENSE_PUBLIC_KEY: &str = "";
+
 /// Install the brand name into the global configuration.
 ///
 /// Must run before anything reads the configuration, since the config

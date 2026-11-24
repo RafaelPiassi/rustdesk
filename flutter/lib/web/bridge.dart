@@ -758,6 +758,14 @@ class RustdeskImpl {
     return js.context.callMethod('getByName', ['option', key]);
   }
 
+  String mainGetLicenseStatus({dynamic hint}) {
+    return jsonEncode({'licensed': true});
+  }
+
+  Future<String> mainActivateLicense({required String serial, dynamic hint}) {
+    throw UnimplementedError("mainActivateLicense");
+  }
+
   Future<String> mainGetError({dynamic hint}) {
     throw UnimplementedError("mainGetError");
   }

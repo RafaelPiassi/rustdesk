@@ -91,4 +91,6 @@ fn main() {
         println!("cargo:rustc-link-lib=framework=ApplicationServices");
     }
     println!("cargo:rerun-if-changed=build.rs");
+    println!("cargo:rerun-if-env-changed=BOASAFRA_LICENSE_PUBLIC_KEY");
+    println!("cargo:rerun-if-env-changed=BOASAFRA_LICENSE_SERVER");
 }

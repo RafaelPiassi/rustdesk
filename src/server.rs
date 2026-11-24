@@ -563,6 +563,7 @@ pub fn check_zombie() {
 #[cfg(any(target_os = "android", target_os = "ios"))]
 #[tokio::main]
 pub async fn start_server(_is_server: bool) {
+    crate::license::start_check_thread();
     crate::RendezvousMediator::start_all().await;
 }
 
@@ -591,6 +592,7 @@ pub async fn start_server(is_server: bool, no_server: bool) {
 
     if is_server {
         crate::common::set_server_running(true);
+        crate::license::start_check_thread();
         std::thread::spawn(move || {
             if let Err(err) = crate::ipc::start("") {
                 log::error!("Failed to start ipc: {}", err);
