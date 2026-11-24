@@ -148,6 +148,52 @@ The MSI lands in `res\msi\Package\bin\x64\Release\en-us\Package.msi`.
 is needed. It also copies the branded installer artwork from
 `res/branding/boasafra/msi` into the generated `Package/Resources`.
 
+## Licensing
+
+Every machine needs an activated serial before it accepts or makes a remote
+connection. Serials come from the license panel in
+[`license-panel/`](license-panel/README.md), which runs as a Docker container
+next to `hbbs`/`hbbr`. A serial binds to the first machine that activates it
+and is valid for a year by default.
+
+The client side is [`src/license.rs`](src/license.rs). Validation is online
+only: the service revalidates every hour, and the panel's signed answer counts
+for 24 hours, after which an unreachable panel blocks the machine. The client
+trusts only answers signed by the panel's Ed25519 key, so every build needs the
+panel's public key and address:
+
+| Where | Value |
+| --- | --- |
+| repository variable `BOASAFRA_LICENSE_PUBLIC_KEY` (or `LICENSE_PUBLIC_KEY` in `src/branding.rs`) | the public key from the panel's *Configurações* page |
+| repository variable `BOASAFRA_LICENSE_SERVER` (or `LICENSE_SERVER` in `src/branding.rs`) | the panel's `https://` address |
+
+The repository variables reach the build through `flutter-build.yml` and win
+over the constants. **A build without a key blocks every connection**, so set
+them before the next release. The `license-server` option overrides the
+address at run time (for example from a custom client config).
+
+## Customer brand installers
+
+The panel can give each customer its own brand: name, company, logos. *Marcas →
+Gerar instalador* dispatches
+[`.github/workflows/brand-build.yml`](.github/workflows/brand-build.yml), whose
+`apply-brand` job downloads the brand pack from the panel and runs
+[`res/branding/apply_brand.py`](res/branding/apply_brand.py) over the checkout:
+
+- the four names in the table above are replaced everywhere this document says
+  they live, and the files named after the brand are renamed;
+- `LICENSE_SERVER` and `LICENSE_PUBLIC_KEY` are set to the panel that issued
+  the pack;
+- the artwork is replaced and every icon regenerated with
+  `res/branding/boasafra/generate.py`, which takes an optional square
+  `emblem.svg` and the installer colour from `BRAND_COLOR_DARK`.
+
+The Windows job then builds from the rebranded files and publishes
+`<slug>-<version>-<arch>.msi` and `.exe` under the release tag the panel chose.
+Only the Windows installers are built per brand today.
+
+Because the repository is public, brand runs and releases are public too.
+
 ## What is deliberately not rebranded
 
 - **The Rust crate and library names** (`rustdesk`, `librustdesk`). They are

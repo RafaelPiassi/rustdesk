@@ -88,7 +88,17 @@ pub async fn ensure_licensed() -> ResultType<()> {
 
 /// The license state for the UI, as JSON.
 pub fn status_json() -> String {
-    let get = |k: &str| crate::ui_interface::get_option(k);
+    status_json_with(|k| crate::ui_interface::get_option(k))
+}
+
+/// The license state as the service sees it, as JSON, for the command line.
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
+pub fn service_status_json() -> String {
+    let options = crate::ipc::get_options();
+    status_json_with(|k| options.get(k).cloned().unwrap_or_default())
+}
+
+fn status_json_with(get: impl Fn(&str) -> String) -> String {
     let serial = get(OPTION_SERIAL);
     let now = hbb_common::get_time() / 1000;
     let status = load_status(&get(OPTION_STATUS), &serial);
@@ -117,13 +127,14 @@ pub fn status_json() -> String {
 
 /// Activate `serial` on this machine. Blocking; returns JSON for the UI.
 ///
-/// Must not run on a Tokio thread: it uses the blocking HTTP client.
+/// Must not run on a Tokio thread: it uses the blocking HTTP client and, on
+/// desktop, the blocking IPC helpers.
 pub fn activate(serial: &str) -> String {
     let result = request("/api/v1/activate", serial).and_then(|(status, token)| {
         let reason = evaluate(&status.serial, Some(&status), hbb_common::get_time() / 1000).err();
         if reason.is_none() {
-            crate::ui_interface::set_option(OPTION_SERIAL.to_owned(), status.serial);
-            crate::ui_interface::set_option(OPTION_STATUS.to_owned(), token);
+            store(OPTION_SERIAL, &status.serial);
+            store(OPTION_STATUS, &token);
         }
         Ok(reason)
     });
@@ -135,6 +146,16 @@ pub fn activate(serial: &str) -> String {
         }
     };
     serde_json::json!({ "ok": reason.is_empty(), "reason": reason }).to_string()
+}
+
+/// Save an option where the process that owns the config will see it.
+fn store(key: &str, value: &str) {
+    // Through the service, one key at a time: it merges into the service's
+    // options rather than replacing them with this process's copy.
+    #[cfg(not(any(target_os = "android", target_os = "ios")))]
+    crate::ipc::set_option(key, value);
+    #[cfg(any(target_os = "android", target_os = "ios"))]
+    Config::set_option(key.to_owned(), value.to_owned());
 }
 
 /// Revalidate the stored serial with the panel, periodically, for good.
@@ -188,7 +209,11 @@ fn load_status(token: &str, serial: &str) -> Option<Status> {
     decode(token, &pk, serial, &machine_fingerprint())
 }
 
-fn evaluate<'a>(serial: &str, status: Option<&'a Status>, now: i64) -> Result<&'a Status, &'static str> {
+fn evaluate<'a>(
+    serial: &str,
+    status: Option<&'a Status>,
+    now: i64,
+) -> Result<&'a Status, &'static str> {
     if public_key().is_none() || server_url().is_empty() {
         return Err(REASON_MISCONFIGURED);
     }
@@ -257,7 +282,10 @@ fn request(path: &str, serial: &str) -> ResultType<(Status, String)> {
         .json()
         .unwrap_or_default();
     if response.token.is_empty() {
-        log::warn!("license server {url} refused the request: {}", response.error);
+        log::warn!(
+            "license server {url} refused the request: {}",
+            response.error
+        );
         bail!(REASON_OFFLINE);
     }
     let Some(status) = decode(&response.token, &pk, serial, &machine) else {
@@ -308,7 +336,10 @@ fn public_key() -> Option<sign::PublicKey> {
 fn server_url() -> String {
     let custom = Config::get_option(OPTION_SERVER);
     let url = if custom.trim().is_empty() {
-        configured(option_env!("BOASAFRA_LICENSE_SERVER"), branding::LICENSE_SERVER)
+        configured(
+            option_env!("BOASAFRA_LICENSE_SERVER"),
+            branding::LICENSE_SERVER,
+        )
     } else {
         custom.trim()
     };
@@ -335,11 +366,17 @@ mod tests {
         let (pk, sk) = sign::gen_keypair();
         let s = status("active", 2_000, 1_000);
         let token = crate::encode64(sign::sign(&serde_json::to_vec(&s).unwrap(), &sk));
-        assert_eq!(decode(&token, &pk, "bsaf aaaa bbbb cccc dddd", "m1"), Some(s));
+        assert_eq!(
+            decode(&token, &pk, "bsaf aaaa bbbb cccc dddd", "m1"),
+            Some(s)
+        );
         assert_eq!(decode(&token, &pk, "BSAF-AAAA-BBBB-CCCC-EEEE", "m1"), None);
         assert_eq!(decode(&token, &pk, "BSAF-AAAA-BBBB-CCCC-DDDD", "m2"), None);
         let (other_pk, _) = sign::gen_keypair();
-        assert_eq!(decode(&token, &other_pk, "BSAF-AAAA-BBBB-CCCC-DDDD", "m1"), None);
+        assert_eq!(
+            decode(&token, &other_pk, "BSAF-AAAA-BBBB-CCCC-DDDD", "m1"),
+            None
+        );
     }
 
     #[test]
@@ -347,12 +384,33 @@ mod tests {
         let day = 24 * 60 * 60;
         let now = 100 * day;
         assert!(judge(&status("active", now + day, now - 60), now).is_ok());
-        assert_eq!(judge(&status("active", now - 1, now - 60), now), Err(REASON_EXPIRED));
-        assert_eq!(judge(&status("active", now + day, now - GRACE_SECS - 1), now), Err(REASON_OFFLINE));
-        assert_eq!(judge(&status("active", now + day, now + CLOCK_SKEW_SECS + 1), now), Err(REASON_OFFLINE));
-        assert_eq!(judge(&status("revoked", now + day, now), now), Err(REASON_REVOKED));
-        assert_eq!(judge(&status("bound_elsewhere", now + day, now), now), Err(REASON_OTHER_MACHINE));
-        assert_eq!(judge(&status("expired", now + day, now), now), Err(REASON_EXPIRED));
-        assert_eq!(judge(&status("invalid", now + day, now), now), Err(REASON_INVALID));
+        assert_eq!(
+            judge(&status("active", now - 1, now - 60), now),
+            Err(REASON_EXPIRED)
+        );
+        assert_eq!(
+            judge(&status("active", now + day, now - GRACE_SECS - 1), now),
+            Err(REASON_OFFLINE)
+        );
+        assert_eq!(
+            judge(&status("active", now + day, now + CLOCK_SKEW_SECS + 1), now),
+            Err(REASON_OFFLINE)
+        );
+        assert_eq!(
+            judge(&status("revoked", now + day, now), now),
+            Err(REASON_REVOKED)
+        );
+        assert_eq!(
+            judge(&status("bound_elsewhere", now + day, now), now),
+            Err(REASON_OTHER_MACHINE)
+        );
+        assert_eq!(
+            judge(&status("expired", now + day, now), now),
+            Err(REASON_EXPIRED)
+        );
+        assert_eq!(
+            judge(&status("invalid", now + day, now), now),
+            Err(REASON_INVALID)
+        );
     }
 }

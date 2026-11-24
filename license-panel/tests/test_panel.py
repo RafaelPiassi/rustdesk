@@ -202,3 +202,26 @@ def test_rate_limit(app, client):
     for _ in range(30):
         call(client, "/api/v1/validate", "X")
     assert call(client, "/api/v1/validate", "X").status_code == 429
+
+
+def test_build_dispatch_and_status(app, client, monkeypatch):
+    from panel import github
+    app.config.update(GITHUB_REPO="o/r", GITHUB_TOKEN="t")
+    sent = {}
+    monkeypatch.setattr(github, "dispatch", lambda inputs: sent.update(inputs))
+    login(client)
+    token = csrf(client, "/brands/new")
+    r = client.post("/brands", content_type="multipart/form-data", data={
+        "app_name": "AcmeRemoto", "display_name": "Acme Acesso Remoto", "company": "Acme Ltda",
+        "color_dark": "#112233", "csrf": token,
+        "logo_light": (io.BytesIO(SVG), "l.svg"), "logo_dark": (io.BytesIO(SVG), "d.svg")})
+    bid = int(r.headers["Location"].rsplit("/", 1)[1])
+    client.post(f"/brands/{bid}/build", data={"csrf": token})
+    assert sent["brand"] == "AcmeRemoto"
+    assert sent["pack_url"].startswith("https://licencas.test/build-pack/")
+    assert client.get(sent["pack_url"].replace("https://licencas.test", "")).status_code == 200
+
+    monkeypatch.setattr(github, "runs", lambda: {int(sent["build_id"]): {
+        "status": "completed", "conclusion": "success", "html_url": "https://github.com/o/r/actions/runs/1"}})
+    html = client.get(f"/brands/{bid}").get_data(as_text=True)
+    assert "Pronto" in html and sent["release_tag"] in html
