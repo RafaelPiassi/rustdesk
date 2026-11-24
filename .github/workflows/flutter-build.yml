@@ -543,8 +543,9 @@ jobs:
         shell: bash
         run: |
           rustup toolchain install nightly-2023-10-13-${{ matrix.job.target }} --profile minimal --component rustfmt --force-non-host
-          rustup default nightly-2023-10-13-${{ matrix.job.target }}
-          rustc --version --verbose
+          # `rustup default` repeats the host check, so select it for the job instead.
+          echo "RUSTUP_TOOLCHAIN=nightly-2023-10-13-${{ matrix.job.target }}" >> "$GITHUB_ENV"
+          RUSTUP_TOOLCHAIN=nightly-2023-10-13-${{ matrix.job.target }} rustc --version --verbose
 
       - uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32 # v2
         with:
