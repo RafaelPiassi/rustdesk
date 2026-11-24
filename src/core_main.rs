@@ -474,6 +474,14 @@ pub fn core_main() -> Option<Vec<String>> {
                 }
             }
             return None;
+        } else if args[0] == "--activate-license" {
+            if args.len() == 2 {
+                println!("{}", crate::license::activate(&args[1]));
+            }
+            return None;
+        } else if args[0] == "--license-status" {
+            println!("{}", crate::license::service_status_json());
+            return None;
         } else if args[0] == "--get-id" {
             println!("{}", crate::ipc::get_id());
             return None;

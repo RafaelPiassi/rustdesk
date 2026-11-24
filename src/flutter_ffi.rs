@@ -37,6 +37,8 @@ lazy_static::lazy_static! {
 fn initialize(app_dir: &str, custom_client_config: &str) {
     // Mobile does not go through core_main, so the brand is applied here too.
     crate::branding::apply();
+    #[cfg(any(target_os = "android", target_os = "ios"))]
+    crate::license::start_check_thread();
     flutter::async_tasks::start_flutter_async_runner();
     // `APP_DIR` is set in `main_get_data_dir_ios()` on iOS.
     #[cfg(not(target_os = "ios"))]
@@ -958,6 +960,14 @@ pub fn main_get_option(key: String) -> String {
 
 pub fn main_get_option_sync(key: String) -> SyncReturn<String> {
     SyncReturn(get_option(key))
+}
+
+pub fn main_get_license_status() -> SyncReturn<String> {
+    SyncReturn(crate::license::status_json())
+}
+
+pub fn main_activate_license(serial: String) -> String {
+    crate::license::activate(&serial)
 }
 
 pub fn main_get_error() -> String {

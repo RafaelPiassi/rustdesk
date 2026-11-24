@@ -13,6 +13,7 @@ import 'package:url_launcher/url_launcher_string.dart';
 
 import '../../common.dart';
 import '../../common/widgets/dialog.dart';
+import '../../common/widgets/license.dart';
 import '../../common/widgets/login.dart';
 import '../../consts.dart';
 import '../../models/model.dart';
@@ -744,6 +745,10 @@ class _SettingsState extends State<SettingsPage> with WidgetsBindingObserver {
             ],
           ),
         SettingsSection(title: Text(translate("Settings")), tiles: [
+          SettingsTile(
+              title: Text(translate('License')),
+              leading: Icon(Icons.verified),
+              onPressed: (context) => showLicenseDialog()),
           if (!disabledSettings && !_hideNetwork && !_hideServer)
             SettingsTile(
                 title: Text(translate('ID/Relay Server')),

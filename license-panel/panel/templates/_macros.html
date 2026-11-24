@@ -1,0 +1,31 @@
+{% macro badge(state) -%}
+<span class="badge {{ state }}">{{ STATE_LABELS[state] }}</span>
+{%- endmacro %}
+{% macro csrf() -%}
+<input type="hidden" name="csrf" value="{{ csrf_token() }}">
+{%- endmacro %}
+{% macro license_table(licenses, show_customer=true) -%}
+<div class="scroll">
+<table>
+  <thead><tr>
+    <th>Serial</th>{% if show_customer %}<th>Cliente</th>{% endif %}<th>Situação</th>
+    <th>Computador</th><th>Ativada</th><th>Vence</th><th>Último contato</th>
+  </tr></thead>
+  <tbody>
+  {% for l in licenses %}
+    <tr>
+      <td><a class="mono" href="{{ url_for('web.license', lid=l.id) }}">{{ l.serial }}</a></td>
+      {% if show_customer %}<td><a href="{{ url_for('web.customer', cid=l.customer_id) }}">{{ l.customer }}</a></td>{% endif %}
+      <td>{{ badge(l.state) }}</td>
+      <td>{{ l.hostname }}{% if l.peer_id %} <span class="muted">({{ l.peer_id }})</span>{% endif %}</td>
+      <td>{{ l.activated_at|date }}</td>
+      <td>{% if l.expires_at %}{{ l.expires_at|date }}{% else %}<span class="muted">{{ l.validity_days }} dias após ativar</span>{% endif %}</td>
+      <td>{{ l.last_seen_at|datetime }}</td>
+    </tr>
+  {% else %}
+    <tr><td colspan="7" class="muted">Nenhuma licença.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{%- endmacro %}

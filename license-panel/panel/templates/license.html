@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% from "_macros.html" import badge, csrf %}
+{% block title %}{{ lic.serial }}{% endblock %}
+{% block content %}
+<p><a href="{{ url_for('web.customer', cid=lic.customer_id) }}">← {{ lic.customer }}</a></p>
+<h1 class="mono">{{ lic.serial }} {{ badge(lic.state) }}</h1>
+
+<dl class="card facts">
+  <dt>Cliente</dt><dd><a href="{{ url_for('web.customer', cid=lic.customer_id) }}">{{ lic.customer }}</a></dd>
+  <dt>Gerada em</dt><dd>{{ lic.created_at|datetime }}</dd>
+  <dt>Ativada em</dt><dd>{{ lic.activated_at|datetime or '—' }}</dd>
+  <dt>Vence em</dt><dd>{% if lic.expires_at %}{{ lic.expires_at|date }}{% else %}{{ lic.validity_days }} dias após a ativação{% endif %}</dd>
+  <dt>Computador</dt><dd>{{ lic.hostname or '—' }}</dd>
+  <dt>ID de acesso</dt><dd>{{ lic.peer_id or '—' }}</dd>
+  <dt>Sistema / versão</dt><dd>{{ lic.platform }} {{ lic.version }}</dd>
+  <dt>Aplicativo</dt><dd>{{ lic.app or '—' }}
+    {% if brand and lic.app and lic.app != brand.app_name %}<span class="badge expiring">a marca do cliente é {{ brand.app_name }}</span>{% endif %}</dd>
+  <dt>Último contato</dt><dd>{{ lic.last_seen_at|datetime or '—' }} {% if lic.last_ip %}<span class="muted">de {{ lic.last_ip }}</span>{% endif %}</dd>
+  <dt>Impressão digital</dt><dd class="mono small">{{ lic.machine or '—' }}</dd>
+</dl>
+
+<div class="row">
+  <form method="post" action="{{ url_for('web.license_action', lid=lic.id, action='renew') }}" class="card">
+    {{ csrf() }}
+    <h3>Renovar</h3>
+    <label>Dias <input name="days" type="number" min="1" max="3650" value="{{ default_days }}"></label>
+    <p class="muted small">Soma ao vencimento atual, ou a partir de hoje se já venceu.</p>
+    <button>Renovar</button>
+  </form>
+  <form method="post" action="{{ url_for('web.license_action', lid=lic.id, action='expiry') }}" class="card">
+    {{ csrf() }}
+    <h3>Definir vencimento</h3>
+    <label>Data <input name="date" type="date" required></label>
+    <button>Salvar data</button>
+  </form>
+  <div class="card">
+    <h3>Ações</h3>
+    {% if lic.state == 'revoked' %}
+      <form method="post" action="{{ url_for('web.license_action', lid=lic.id, action='unrevoke') }}">{{ csrf() }}<button>Reativar</button></form>
+    {% else %}
+      <form method="post" action="{{ url_for('web.license_action', lid=lic.id, action='revoke') }}"
+            onsubmit="return confirm('Revogar a licença? O computador deixará de aceitar e fazer conexões.')">{{ csrf() }}<button class="danger">Revogar</button></form>
+    {% endif %}
+    {% if lic.machine %}
+      <form method="post" action="{{ url_for('web.license_action', lid=lic.id, action='unbind') }}"
+            onsubmit="return confirm('Remover o vínculo com este computador? Ele será bloqueado e o serial poderá ser ativado em outro.')">{{ csrf() }}<button class="secondary">Trocar de computador</button></form>
+    {% endif %}
+    {% if lic.state in ('unused', 'revoked') %}
+      <form method="post" action="{{ url_for('web.license_action', lid=lic.id, action='delete') }}"
+            onsubmit="return confirm('Excluir a licença definitivamente?')">{{ csrf() }}<button class="danger">Excluir</button></form>
+    {% endif %}
+  </div>
+</div>
+
+<form method="post" action="{{ url_for('web.license_action', lid=lic.id, action='notes') }}" class="card">
+  {{ csrf() }}
+  <label>Observações <textarea name="notes" rows="3">{{ lic.notes }}</textarea></label>
+  <button>Salvar</button>
+</form>
+
+<h2>Histórico</h2>
+{% set events = events %}
+{% include "_events.html" %}
+{% endblock %}

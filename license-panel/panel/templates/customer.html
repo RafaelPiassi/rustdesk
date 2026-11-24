@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% from "_macros.html" import csrf, license_table %}
+{% block title %}{{ customer.name }}{% endblock %}
+{% block content %}
+<p><a href="{{ url_for('web.customers') }}">← Clientes</a></p>
+<h1>{{ customer.name }}</h1>
+
+<h2>Gerar seriais</h2>
+<form method="post" action="{{ url_for('web.licenses_create', cid=customer.id) }}" class="card grid">
+  {{ csrf() }}
+  <label>Quantidade <input name="count" type="number" min="1" max="500" value="1"></label>
+  <label>Validade (dias) <input name="validity_days" type="number" min="1" max="3650" value="{{ default_days }}"></label>
+  <label>A validade começa
+    <select name="start">
+      <option value="activation">na ativação em cada computador</option>
+      <option value="now">hoje</option>
+    </select>
+  </label>
+  <label>Observação <input name="notes" placeholder="ex.: pedido 1234"></label>
+  <div class="actions"><button>Gerar</button></div>
+</form>
+
+<h2>Licenças</h2>
+{{ license_table(licenses, show_customer=false) }}
+
+<h2>Dados do cliente</h2>
+<form method="post" action="{{ url_for('web.customer_update', cid=customer.id) }}" class="card grid">
+  {{ csrf() }}
+  {% set c = customer %}
+  {% include "_customer_fields.html" %}
+  <div class="actions"><button>Salvar</button></div>
+</form>
+<form method="post" action="{{ url_for('web.customer_delete', cid=customer.id) }}"
+      onsubmit="return confirm('Excluir este cliente?')">
+  {{ csrf() }}<button class="danger">Excluir cliente</button>
+</form>
+{% endblock %}

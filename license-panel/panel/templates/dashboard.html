@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% from "_macros.html" import license_table %}
+{% block title %}Início{% endblock %}
+{% block content %}
+<h1>Visão geral</h1>
+<div class="stats">
+  <a class="stat" href="{{ url_for('web.customers') }}"><b>{{ customers }}</b><span>Clientes</span></a>
+  <a class="stat active" href="{{ url_for('web.licenses', state='active') }}"><b>{{ counts.active }}</b><span>Ativas</span></a>
+  <a class="stat expiring" href="{{ url_for('web.licenses', state='expiring') }}"><b>{{ counts.expiring }}</b><span>Vencendo em 30 dias</span></a>
+  <a class="stat expired" href="{{ url_for('web.licenses', state='expired') }}"><b>{{ counts.expired }}</b><span>Vencidas</span></a>
+  <a class="stat unused" href="{{ url_for('web.licenses', state='unused') }}"><b>{{ counts.unused }}</b><span>Não ativadas</span></a>
+  <a class="stat revoked" href="{{ url_for('web.licenses', state='revoked') }}"><b>{{ counts.revoked }}</b><span>Revogadas</span></a>
+</div>
+
+<h2>Vencendo ou vencidas</h2>
+{{ license_table(expiring) }}
+
+<h2>Atividade recente</h2>
+{% include "_events.html" %}
+{% endblock %}

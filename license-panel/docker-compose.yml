@@ -1,0 +1,33 @@
+# Painel de licenças. Coloque-o atrás de um proxy com HTTPS (Caddy, Nginx,
+# Traefik): os clientes e o GitHub Actions acessam o painel pela internet.
+services:
+  license-panel:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      PANEL_DATA_DIR: /data
+    volumes:
+      - license-data:/data
+    ports:
+      - "127.0.0.1:8000:8000"
+
+  # Proxy HTTPS opcional, com certificado automático do Let's Encrypt.
+  # Ative com: docker compose --profile https up -d
+  # e defina PANEL_DOMAIN no .env (o DNS precisa apontar para este servidor).
+  caddy:
+    profiles: ["https"]
+    image: caddy:2
+    restart: unless-stopped
+    command: caddy reverse-proxy --from ${PANEL_DOMAIN:-localhost} --to license-panel:8000
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - caddy-data:/data
+    depends_on:
+      - license-panel
+
+volumes:
+  license-data:
+  caddy-data:

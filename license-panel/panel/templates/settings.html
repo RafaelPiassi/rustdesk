@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% from "_macros.html" import csrf %}
+{% block title %}Configurações{% endblock %}
+{% block content %}
+<h1>Configurações</h1>
+
+<section class="card">
+  <h2>Chave pública</h2>
+  <p>Os clientes só aceitam respostas assinadas por este painel. Para a marca padrão, coloque a chave e o
+     endereço no build: em <code>src/branding.rs</code> ou nas variáveis do repositório
+     <code>BOASAFRA_LICENSE_PUBLIC_KEY</code> e <code>BOASAFRA_LICENSE_SERVER</code>.
+     Os instaladores de marca gerados por aqui já saem com os dois.</p>
+  <label>Chave pública (base64) <input class="mono" readonly value="{{ public_key }}" onclick="this.select()"></label>
+  <label>Endereço do painel (PANEL_PUBLIC_URL) <input class="mono" readonly value="{{ public_url or 'não configurado' }}"></label>
+  <pre>pub const LICENSE_SERVER: &amp;str = "{{ public_url }}";
+pub const LICENSE_PUBLIC_KEY: &amp;str = "{{ public_key }}";</pre>
+  <p class="muted small">A chave privada fica em <code>/data/license_signing_key</code>. Faça backup do volume:
+     sem ela, todos os clientes precisam ser recompilados e reinstalados.</p>
+</section>
+
+<section class="card">
+  <h2>Builds de marca (GitHub Actions)</h2>
+  {% if github_ready %}
+    <p>Configurado para <code>{{ github_repo }}</code>.</p>
+  {% else %}
+    <p>Não configurado. Defina <code>GITHUB_REPO</code> e <code>GITHUB_TOKEN</code> (token com permissão
+       <em>Actions: read and write</em> no repositório) para gerar instaladores pelo painel.</p>
+  {% endif %}
+</section>
+
+<form method="post" action="{{ url_for('web.change_password') }}" class="card grid">
+  {{ csrf() }}
+  <h2 class="wide">Trocar senha</h2>
+  <label>Senha atual <input name="current" type="password" autocomplete="current-password" required></label>
+  <label>Nova senha <input name="new" type="password" autocomplete="new-password" minlength="10" required></label>
+  <label>Confirmar <input name="confirm" type="password" autocomplete="new-password" minlength="10" required></label>
+  <div class="actions"><button>Trocar senha</button></div>
+</form>
+{% endblock %}

@@ -2670,6 +2670,12 @@ impl Connection {
         }
         // After handling CloseReason messages, proceed to process other message types
         if let Some(message::Union::LoginRequest(lr)) = msg.union {
+            if let Err(reason) = crate::license::check() {
+                log::warn!("refusing connection: {reason}");
+                self.send_login_error(crate::license::REASON_REMOTE).await;
+                sleep(1.).await;
+                return false;
+            }
             if !self.check_login_scope(&lr).await {
                 return false;
             }

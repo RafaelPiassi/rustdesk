@@ -34,9 +34,14 @@ ROOT = os.path.abspath(os.path.join(HERE, "..", "..", ".."))
 
 LOGO_LIGHT = os.path.join(HERE, "logo-light.svg")
 LOGO_DARK = os.path.join(HERE, "logo-dark.svg")
+# Optional: a square mark to use as the icon instead of cropping it out of the
+# lockup. Customer brands (res/branding/apply_brand.py) supply one when their
+# logo has no mark set apart from the wordmark.
+EMBLEM = os.path.join(HERE, "emblem.svg")
 
-# Boa Safra's palette, as it appears in the official artwork.
-DARK = "#304929"
+# Boa Safra's palette, as it appears in the official artwork. A customer brand
+# overrides the colour of the installer's side panel.
+DARK = os.environ.get("BRAND_COLOR_DARK", "#304929")
 LIGHT = "#9DAF40"
 WHITE = "#FFFFFF"
 
@@ -229,15 +234,22 @@ def main():
     light = open(LOGO_LIGHT, encoding="utf-8").read()
     dark = open(LOGO_DARK, encoding="utf-8").read()
 
-    emblem = emblem_svg(light)
-    reversed_emblem = emblem_svg(dark)
+    if os.path.exists(EMBLEM):
+        emblem = inline_styles(open(EMBLEM, encoding="utf-8").read())
+        # Only one colourway was supplied, so the reversed mark is its
+        # silhouette in white.
+        figure = recolour(crop_alpha(rasterise(emblem, 512)), (255, 255, 255))
+        print("emblem  taken from emblem.svg")
+    else:
+        emblem = emblem_svg(light)
+        # The reversed mark, white on transparency, for anything drawn on a
+        # dark ground: the menu bar, the status bar and the installer's side
+        # panel.
+        figure = crop_alpha(rasterise(emblem_svg(dark), 512))
+        print("emblem  cropped from logo-light.svg at %s" %
+              ("%.2f %.2f %.2f %.2f" % square(mark_box(light))))
     ICON_INSET = 0.88
     icon = on_ground(rasterise(emblem, 1024), 1024, ICON_INSET, WHITE)
-    # The reversed mark, white on transparency, for anything drawn on a dark
-    # ground: the menu bar, the status bar and the installer's side panel.
-    figure = crop_alpha(rasterise(reversed_emblem, 512))
-    print("emblem  cropped from logo-light.svg at %s" %
-          ("%.2f %.2f %.2f %.2f" % square(mark_box(light))))
 
     # --- shared / Linux ---------------------------------------------------
     save(icon, "res", "icon.png")

@@ -275,5 +275,14 @@ pub static ref T: std::collections::HashMap<&'static str, &'static str> =
         ("id_whitelist_caveat_tip", "The ID is reported by the connecting client. This whitelist reduces exposure and does not replace the password or 2FA."),
         ("whitelist_cidr_tip", "CIDR notation is supported, e.g. 192.168.1.0/24"),
         ("Your ip is blocked by the peer", "Your IP is blocked by the peer"),
+        ("license-none-tip", "This computer has no license. Remote connections are blocked until a license is activated."),
+        ("license-expired-tip", "The license of this computer has expired. Remote connections are blocked until it is renewed."),
+        ("license-revoked-tip", "The license of this computer has been revoked. Remote connections are blocked."),
+        ("license-other-machine-tip", "This serial number is already activated on another computer."),
+        ("license-invalid-tip", "Invalid serial number."),
+        ("license-offline-tip", "Could not reach the license server. Remote connections are blocked until the license can be checked again."),
+        ("license-misconfigured-tip", "This build has no license server configured. Contact your provider."),
+        ("license-remote-tip", "The remote computer has no valid license."),
+        ("license-expiring-tip", "The license of this computer expires in {} days."),
     ].iter().cloned().collect();
 }

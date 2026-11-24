@@ -1,0 +1,46 @@
+# Builds a customer's white-label Windows installer. The license panel starts
+# it (Marcas → Gerar instalador) through the GitHub API; it can also be run by
+# hand with a brand pack URL the panel issued.
+#
+# The pack is downloaded by the apply-brand job in flutter-build.yml, which
+# rebrands the checkout with res/branding/apply_brand.py before the Windows
+# build. The MSI and the self-extracting installer are published as a
+# pre-release under `release_tag`.
+name: Customer brand installer
+run-name: "Marca ${{ inputs.brand }} (build ${{ inputs.build_id }})"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ inputs.brand }}
+  cancel-in-progress: true
+
+on:
+  workflow_dispatch:
+    inputs:
+      brand:
+        description: The brand identity, as the panel names it (e.g. AcmeRemoto)
+        type: string
+        required: true
+      build_id:
+        description: The panel's build number, so the panel can follow the run
+        type: string
+        required: true
+      pack_url:
+        description: The brand pack the panel serves for this build
+        type: string
+        required: true
+      release_tag:
+        description: The pre-release the installers are published under
+        type: string
+        required: true
+
+jobs:
+  windows:
+    permissions:
+      contents: write
+    uses: ./.github/workflows/flutter-build.yml
+    secrets: inherit
+    with:
+      windows-only: true
+      upload-artifact: true
+      upload-tag: ${{ inputs.release_tag }}
+      brand-pack-url: ${{ inputs.pack_url }}
